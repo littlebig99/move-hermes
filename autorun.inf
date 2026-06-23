@@ -1,0 +1,8 @@
+# Move Hermes
+
+:: U盘智能体 — 自动启动配置
+:: 将此文件放在U盘根目录，插入U盘后自动运行
+
+[autorun]
+open=start.bat
+icon=start.ico

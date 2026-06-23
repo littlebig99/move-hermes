@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Move Hermes — 订单看板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        .header {
+            background: #1e293b;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+        }
+        .header h1 { font-size: 1.25rem; color: #38bdf8; }
+        .header nav a {
+            color: #94a3b8;
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .header nav a:hover { color: #38bdf8; }
+        .content { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+        
+        /* 统计卡片 */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: #1e293b;
+            border-radius: 10px;
+            padding: 1.25rem;
+            border: 1px solid #334155;
+        }
+        .stat-card .label { font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem; }
+        .stat-card .value { font-size: 2rem; font-weight: 700; }
+        .stat-card .value.blue { color: #38bdf8; }
+        .stat-card .value.yellow { color: #fbbf24; }
+        .stat-card .value.green { color: #34d399; }
+        .stat-card .value.red { color: #f87171; }
+        
+        /* 预警区域 */
+        .alert-section {
+            background: #1e293b;
+            border-radius: 10px;
+            padding: 1.25rem;
+            border: 1px solid #334155;
+            margin-bottom: 1.5rem;
+        }
+        .alert-section h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .alert-section h3.red { color: #f87171; }
+        .alert-section h3.orange { color: #fbbf24; }
+        
+        .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: #0f172a;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid #f87171;
+        }
+        .alert-item .order-no { font-weight: 600; color: #e2e8f0; }
+        .alert-item .detail { font-size: 0.85rem; color: #94a3b8; }
+        .alert-item .days { 
+            font-size: 0.8rem; 
+            color: #f87171; 
+            background: rgba(248,113,113,0.1);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+        }
+        
+        /* 生产进度表 */
+        .progress-table {
+            background: #1e293b;
+            border-radius: 10px;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+        .progress-table h3 {
+            padding: 1.25rem;
+            font-size: 1rem;
+            border-bottom: 1px solid #334155;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background: #0f172a;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #1e293b;
+            font-size: 0.9rem;
+        }
+        tr:last-child td { border-bottom: none; }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .badge-done { background: rgba(52,211,153,0.15); color: #34d399; }
+        .badge-progress { background: rgba(56,189,248,0.15); color: #38bdf8; }
+        .badge-pending { background: rgba(148,163,184,0.15); color: #94a3b8; }
+        .badge-urgent { background: rgba(248,113,113,0.15); color: #f87171; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📦 Move Hermes</h1>
+        <nav>
+            <a href="/dashboard">看板</a>
+            <a href="/orders">订单</a>
+            <a href="/customers">客户</a>
+            <a href="/products">产品</a>
+            <a href="/alerts">预警</a>
+        </nav>
+    </div>
+    
+    <div class="content">
+        <!-- 统计卡片 -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="label">🔄 生产中</div>
+                <div class="value blue">12</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">⏳ 待开工</div>
+                <div class="value yellow">5</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">✅ 已完成</div>
+                <div class="value green">8</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">🔥 加急</div>
+                <div class="value red">3</div>
+            </div>
+        </div>
+        
+        <!-- 呆滞预警 -->
+        <div class="alert-section">
+            <h3 class="red">⚠️ 呆滞预警</h3>
+            <div class="alert-item">
+                <span><span class="order-no">ORD-20260620-003</span> — 焊接工序</span>
+                <span class="days">停滞 3 天</span>
+            </div>
+            <div class="alert-item">
+                <span><span class="order-no">ORD-20260618-007</span> — 质检工序</span>
+                <span class="days">停滞 5 天</span>
+            </div>
+            <div class="alert-item">
+                <span><span class="order-no">ORD-20260621-005</span> — 包装工序</span>
+                <span class="days">停滞 2 天</span>
+            </div>
+        </div>
+        
+        <!-- 加急订单 -->
+        <div class="alert-section">
+            <h3 class="orange">🔥 加急订单</h3>
+            <div class="alert-item" style="border-left-color: #fbbf24;">
+                <span><span class="order-no">ORD-20260622-010</span> — 李四工厂，明天交货</span>
+                <span class="badge badge-urgent">加急</span>
+            </div>
+            <div class="alert-item" style="border-left-color: #fbbf24;">
+                <span><span class="order-no">ORD-20260620-008</span> — 王五科技，后天交货</span>
+                <span class="badge badge-urgent">加急</span>
+            </div>
+        </div>
+        
+        <!-- 生产进度看板 -->
+        <div class="progress-table">
+            <h3>📋 生产进度看板</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>订单号</th>
+                        <th>客户</th>
+                        <th>产品</th>
+                        <th>下料</th>
+                        <th>加工</th>
+                        <th>组装</th>
+                        <th>质检</th>
+                        <th>包装</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>ORD-001</td>
+                        <td>张三贸易</td>
+                        <td>法兰 DN50</td>
+                        <td><span class="badge badge-done">✅</span></td>
+                        <td><span class="badge badge-done">✅</span></td>
+                        <td><span class="badge badge-progress">🔄</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-progress">生产中</span></td>
+                    </tr>
+                    <tr>
+                        <td>ORD-002</td>
+                        <td>李四工厂</td>
+                        <td>螺栓 M12</td>
+                        <td><span class="badge badge-done">✅</span></td>
+                        <td><span class="badge badge-progress">🔄</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-progress">生产中</span></td>
+                    </tr>
+                    <tr>
+                        <td>ORD-003</td>
+                        <td>王五科技</td>
+                        <td>垫片 304</td>
+                        <td><span class="badge badge-progress">🔄</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-progress">生产中</span></td>
+                    </tr>
+                    <tr>
+                        <td>ORD-004</td>
+                        <td>赵六机械</td>
+                        <td>螺母 M10</td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">⏳</span></td>
+                        <td><span class="badge badge-pending">待开工</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
