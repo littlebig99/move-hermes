@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Move Hermes — 预警中心</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+        .header{background:#1e293b;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155}
+        .header h1{font-size:1.25rem;color:#38bdf8}
+        .header nav a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
+        .header nav a:hover,.header nav a.active{color:#38bdf8}
+        .content{padding:2rem;max-width:1200px;margin:0 auto}
+        .alert-section{background:#1e293b;border-radius:10px;border:1px solid #334155;padding:1.25rem;margin-bottom:1.5rem}
+        .alert-section h3{font-size:1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+        .alert-section h3.red{color:#f87171}
+        .alert-section h3.orange{color:#fbbf24}
+        .alert-item{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;background:#0f172a;border-radius:6px;margin-bottom:.5rem;border-left:3px solid #f87171}
+        .alert-item .order-no{font-weight:600;color:#e2e8f0}
+        .alert-item .detail{font-size:.85rem;color:#94a3b8}
+        .alert-item .days{font-size:.8rem;color:#f87171;background:rgba(248,113,113,.1);padding:.25rem .75rem;border-radius:20px}
+        .empty-state{text-align:center;padding:4rem 2rem;color:#64748b}
+        .empty-state h2{font-size:1.5rem;margin-bottom:.5rem;color:#94a3b8}
+        .badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.8rem;font-weight:500}
+        .badge-urgent{background:rgba(248,113,113,.15);color:#f87171}
+        .badge-warning{background:rgba(251,191,36,.15);color:#fbbf24}
+        .badge-info{background:rgba(56,189,248,.15);color:#38bdf8}
+        .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem}
+        .stat-card{background:#1e293b;border-radius:10px;padding:1.25rem;border:1px solid #334155;text-align:center}
+        .stat-card .label{font-size:.85rem;color:#64748b;margin-bottom:.5rem}
+        .stat-card .value{font-size:2rem;font-weight:700}
+        .stat-card .value.red{color:#f87171}
+        .stat-card .value.yellow{color:#fbbf24}
+        .stat-card .value.blue{color:#38bdf8}
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>📦 Move Hermes</h1>
+    <nav>
+        <a href="/dashboard">看板</a>
+        <a href="/orders">订单</a>
+        <a href="/tasks">工序</a>
+        <a href="/recognize">识图</a>
+        <a href="/customers">客户</a>
+        <a href="/products">产品</a>
+        <a href="/finance">财务</a>
+        <a href="/alerts">预警</a>
+        <a href="/卷料长度计算">卷料计算</a>
+    </nav>
+</div>
+<div class="content">
+    <div class="stats">
+        <div class="stat-card"><div class="label">⚠️ 呆滞工序</div><div class="value red" id="stalledCount">-</div></div>
+        <div class="stat-card"><div class="label">🔥 加急订单</div><div class="value yellow" id="urgentCount">-</div></div>
+        <div class="stat-card"><div class="label">📋 总预警数</div><div class="value blue" id="totalCount">-</div></div>
+    </div>
+    <div class="alert-section">
+        <h3 class="red">⚠️ 呆滞预警</h3>
+        <div id="stalledList"><div class="empty-state"><p>加载中...</p></div></div>
+    </div>
+    <div class="alert-section">
+        <h3 class="orange">🔥 加急订单</h3>
+        <div id="urgentList"><div class="empty-state"><p>加载中...</p></div></div>
+    </div>
+</div>
+<script>
+const API='/api';
+async function loadAlerts(){
+    try{
+        var stalled=[],urgent=[];
+        try{var sr=await fetch(API+'/tasks/stalled');stalled=await sr.json();}catch(e){}
+        try{var ur=await fetch(API+'/orders?priority=urgent');urgent=await ur.json();}catch(e){}
+        renderAlerts(stalled,urgent);
+    }catch(e){
+        document.getElementById('stalledList').innerHTML='<div class="empty-state"><p>暂无预警数据</p></div>';
+        document.getElementById('urgentList').innerHTML='<div class="empty-state"><p>暂无预警数据</p></div>';
+    }
+}
+function renderAlerts(stalled,urgent){
+    document.getElementById('stalledCount').textContent=stalled.length;
+    document.getElementById('urgentCount').textContent=urgent.length;
+    document.getElementById('totalCount').textContent=(stalled.length+urgent.length);
+    if(!stalled.length){document.getElementById('stalledList').innerHTML='<div class="empty-state"><p>✅ 暂无呆滞预警</p></div>';}
+    else{document.getElementById('stalledList').innerHTML=stalled.map(function(t){return '<div class="alert-item"><span><span class="order-no">'+esc(t.order_no||'订单'+t.id)+'</span> — '+esc(t.task_name)+'工序</span><span class="days">停滞 '+t.stalled_days+' 天</span></div>';}).join('');}
+    if(!urgent.length){document.getElementById('urgentList').innerHTML='<div class="empty-state"><p>✅ 暂无加急订单</p></div>';}
+    else{document.getElementById('urgentList').innerHTML=urgent.map(function(o){return '<div class="alert-item" style="border-left-color:#fbbf24"><span><span class="order-no">'+esc(o.order_no||'订单'+o.id)+'</span> — '+esc(o.customer_name||o.customer||'-')+'</span><span class="badge badge-warning">加急</span></div>';}).join('');}
+}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+loadAlerts();
+</script>
+</body>
+</html>

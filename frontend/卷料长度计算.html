@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卷料长度计算器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 30px 20px;
+        }
+        .container {
+            background: #16213e;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #00d2ff;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            background: #1a1a3e;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .input-group h3 {
+            color: #00d2ff;
+            margin-bottom: 16px;
+            font-size: 15px;
+        }
+        .field {
+            margin-bottom: 12px;
+        }
+        .field label {
+            display: block;
+            font-size: 13px;
+            color: #aaa;
+            margin-bottom: 6px;
+        }
+        .field input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #0d0d2b;
+            color: #fff;
+            font-size: 18px;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .field input:focus {
+            border-color: #00d2ff;
+        }
+        .btn-calc {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00d2ff, #0070f3);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            margin-bottom: 30px;
+        }
+        .btn-calc:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(0,210,255,0.3);
+        }
+        .btn-calc:active {
+            transform: translateY(0);
+        }
+        .result-section { display: none; }
+        .result-section.show { display: block; }
+        .main-result {
+            background: linear-gradient(135deg, #0a3d0a, #0d2b0d);
+            border: 2px solid #00ff88;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .main-result .label {
+            color: #88cc88;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .main-result .value {
+            font-size: 56px;
+            font-weight: bold;
+            color: #00ff88;
+        }
+        .main-result .unit {
+            font-size: 18px;
+            color: #88cc88;
+        }
+        .detail-section {
+            background: #1a1a3e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .detail-section h3 {
+            color: #00d2ff;
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #2a2a4e;
+            font-size: 14px;
+        }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-row .lbl { color: #888; }
+        .detail-row .val { color: #e0e0e0; font-weight: bold; }
+        .visual-section {
+            background: #1a1a3e;
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .visual-section h3 {
+            color: #00d2ff;
+            margin-bottom: 16px;
+            font-size: 16px;
+            text-align: center;
+        }
+        #canvas-container {
+            display: flex;
+            justify-content: center;
+        }
+        canvas {
+            background: #0d0d2b;
+            border-radius: 8px;
+            border: 2px solid #333;
+        }
+        .error-msg {
+            background: #3d0a0a;
+            border: 1px solid #ff4444;
+            color: #ff6666;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+            text-align: center;
+        }
+        .error-msg.show { display: block; }
+        .formula-note {
+            background: #0d0d2b;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 16px;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.8;
+        }
+        .formula-note code {
+            color: #00d2ff;
+            font-size: 13px;
+        }
+        @media (max-width: 600px) {
+            .input-section { grid-template-columns: 1fr; }
+            .container { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>&#x25CE; 卷料长度计算器</h1>
+    <p class="subtitle">输入外径、内径和厚度，自动计算剩余长度</p>
+
+    <div class="input-section">
+        <div class="input-group">
+            <h3>外径</h3>
+            <div class="field">
+                <label>外直径（mm）</label>
+                <input type="number" id="outer-dia" placeholder="例如：100" min="0" step="any">
+            </div>
+        </div>
+        <div class="input-group">
+            <h3>内径</h3>
+            <div class="field">
+                <label>内直径（mm）</label>
+                <input type="number" id="inner-dia" placeholder="例如：10" min="0" step="any">
+            </div>
+        </div>
+        <div class="input-group">
+            <h3>厚度</h3>
+            <div class="field">
+                <label>材料厚度（mm）</label>
+                <input type="number" id="thickness" placeholder="例如：5" min="0" step="any">
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-calc" onclick="calculate()">&#x25B6; 计算长度</button>
+
+    <div class="error-msg" id="error-msg"></div>
+
+    <div class="result-section" id="result-section">
+        <div class="main-result">
+            <div class="label">卷料剩余长度</div>
+            <div class="value" id="result-value">-</div>
+            <div class="unit">米</div>
+        </div>
+
+        <div class="detail-section">
+            <h3>&#x1F4CB; 计算详情</h3>
+            <div class="detail-row">
+                <span class="lbl">外径</span>
+                <span class="val" id="det-outer">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="lbl">内径</span>
+                <span class="val" id="det-inner">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="lbl">厚度</span>
+                <span class="val" id="det-thick">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="lbl">卷绕层数</span>
+                <span class="val" id="det-layers">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="lbl">平均直径</span>
+                <span class="val" id="det-avg">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="lbl">总圈数（等效）</span>
+                <span class="val" id="det-turns">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="lbl">截面积</span>
+                <span class="val" id="det-area">-</span>
+            </div>
+        </div>
+
+        <div class="visual-section">
+            <h3>&#x25CE; 卷料截面示意图</h3>
+            <div id="canvas-container">
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="formula-note">
+                计算公式：<code>L = π × (D² - d²) / (4 × t)</code><br>
+                D=外径, d=内径, t=厚度。基于卷料横截面积等于展开后矩形截面积的原理计算。
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function calculate() {
+    const errorEl = document.getElementById('error-msg');
+    const resultEl = document.getElementById('result-section');
+    errorEl.classList.remove('show');
+    resultEl.classList.remove('show');
+
+    const outerDia = parseFloat(document.getElementById('outer-dia').value);
+    const innerDia = parseFloat(document.getElementById('inner-dia').value);
+    const thick    = parseFloat(document.getElementById('thickness').value);
+
+    if ([outerDia, innerDia, thick].some(v => isNaN(v) || v <= 0)) {
+        errorEl.textContent = '请输入有效的正数！';
+        errorEl.classList.add('show');
+        return;
+    }
+    if (innerDia >= outerDia) {
+        errorEl.textContent = '内径必须小于外径！';
+        errorEl.classList.add('show');
+        return;
+    }
+    if (thick >= (outerDia - innerDia) / 2) {
+        errorEl.textContent = '厚度过大，超过卷料实际厚度！';
+        errorEl.classList.add('show');
+        return;
+    }
+
+    // 核心公式：L = π × (D² - d²) / (4 × t)
+    const lengthM = Math.PI * (outerDia * outerDia - innerDia * innerDia) / (4 * thick) / 1000;
+
+    // 计算详情
+    const layers = Math.round((outerDia - innerDia) / (2 * thick));
+    const avgDia = (outerDia + innerDia) / 2;
+    const avgCircumference = Math.PI * avgDia;
+    const effectiveTurns = lengthM * 1000 / avgCircumference;
+    const crossArea = Math.PI * (outerDia * outerDia - innerDia * innerDia) / 4;
+
+    // 显示结果
+    document.getElementById('result-value').textContent = lengthM.toFixed(2);
+
+    document.getElementById('det-outer').textContent = outerDia + ' mm';
+    document.getElementById('det-inner').textContent = innerDia + ' mm';
+    document.getElementById('det-thick').textContent = thick + ' mm';
+    document.getElementById('det-layers').textContent = layers + ' 层';
+    document.getElementById('det-avg').textContent = avgDia.toFixed(2) + ' mm';
+    document.getElementById('det-turns').textContent = effectiveTurns.toFixed(1) + ' 圈';
+    document.getElementById('det-area').textContent = crossArea.toFixed(1) + ' mm²';
+
+    // 绘制示意图
+    drawCanvas(outerDia, innerDia, thick);
+
+    resultEl.classList.add('show');
+}
+
+function drawCanvas(outerDia, innerDia, thick) {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const size = 350;
+    canvas.width = size;
+    canvas.height = size;
+
+    const cx = size / 2;
+    const cy = size / 2;
+    const maxR = size / 2 - 30;
+
+    // 计算缩放比例
+    const scale = maxR / (outerDia / 2);
+    const outerR = (outerDia / 2) * scale;
+    const innerR = (innerDia / 2) * scale;
+
+    // 背景
+    ctx.fillStyle = '#0d0d2b';
+    ctx.fillRect(0, 0, size, size);
+
+    // 外圆（卷料轮廓）
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f3460';
+    ctx.fill();
+    ctx.strokeStyle = '#00d2ff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 内圆（芯轴）
+    ctx.beginPath();
+    ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d0d2b';
+    ctx.fill();
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 绘制卷绕层（螺旋效果）
+    const layers = Math.round((outerDia - innerDia) / (2 * thick));
+    for (let i = 1; i <= layers; i++) {
+        const r = innerR + (outerR - innerR) * (i / layers);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0, 210, 255, ${0.15 + 0.35 * (i / layers)})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    // 标注外径
+    ctx.fillStyle = '#00d2ff';
+    ctx.font = '14px Microsoft YaHei';
+    ctx.textAlign = 'center';
+    ctx.fillText('外径: ' + outerDia + ' mm', cx, 20);
+
+    // 标注内径
+    ctx.fillStyle = '#e94560';
+    ctx.fillText('内径: ' + innerDia + ' mm', cx, size - 10);
+
+    // 画一条半径标注线
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + outerR, cy);
+    ctx.strokeStyle = '#ffffff44';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 厚度标注
+    const midR = (outerR + innerR) / 2;
+    ctx.fillStyle = '#88cc88';
+    ctx.font = '12px Microsoft YaHei';
+    ctx.textAlign = 'left';
+    ctx.fillText('厚度: ' + thick + ' mm', midR + 10, cy - 5);
+}
+
+// 支持回车键触发计算
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') calculate();
+});
+</script>
+</body>
+</html>

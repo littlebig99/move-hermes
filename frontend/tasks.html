@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Move Hermes — 工序管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.header{background:#1e293b;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155}
+.header h1{font-size:1.25rem;color:#38bdf8}
+.header nav a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
+.header nav a:hover,.header nav a.active{color:#38bdf8}
+.breadcrumb{padding:1rem 2rem;display:flex;gap:.5rem;align-items:center;font-size:.9rem;color:#64748b}
+.breadcrumb a{color:#38bdf8;text-decoration:none}
+.toolbar{padding:1rem 2rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+.toolbar select{padding:.5rem .75rem;border:1px solid #475569;border-radius:6px;background:#1e293b;color:#e2e8f0;font-size:.9rem}
+.toolbar select:focus{outline:none;border-color:#38bdf8}
+.btn{padding:.5rem 1rem;border:none;border-radius:6px;font-size:.9rem;cursor:pointer}
+.btn-primary{background:#38bdf8;color:#0f172a;font-weight:600}
+.btn-sm{padding:.3rem .6rem;font-size:.8rem}
+.btn-success{background:#34d399;color:#0f172a}
+.btn-warning{background:#fbbf24;color:#0f172a}
+.btn-danger{background:#f87171;color:#fff}
+.btn-outline{background:transparent;border:1px solid #475569;color:#94a3b8}
+.btn-outline:hover{border-color:#38bdf8;color:#38bdf8}
+.content{padding:0 2rem 2rem;max-width:1200px;margin:0 auto}
+.card{background:#1e293b;border-radius:10px;border:1px solid #334155;padding:1.5rem;margin-bottom:1.5rem}
+.card h2{font-size:1.1rem;margin-bottom:1rem;color:#e2e8f0}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.8rem;font-weight:500}
+.badge-done{background:rgba(52,211,153,.15);color:#34d399}
+.badge-progress{background:rgba(56,189,248,.15);color:#38bdf8}
+.badge-pending{background:rgba(148,163,184,.15);color:#94a3b8}
+.badge-urgent{background:rgba(248,113,113,.15);color:#f87171}
+.empty-state{text-align:center;padding:3rem 2rem;color:#64748b}
+.empty-state h2{font-size:1.3rem;margin-bottom:.5rem;color:#94a3b8}
+.loading{text-align:center;padding:4rem;color:#64748b;font-size:1.1rem}
+/* 订单选择卡片 */
+.order-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+.order-card{background:#0f172a;border-radius:8px;padding:1rem;border:1px solid #334155;cursor:pointer;transition:all .2s}
+.order-card:hover{border-color:#38bdf8;background:rgba(56,189,248,.03)}
+.order-card.selected{border-color:#38bdf8;background:rgba(56,189,248,.06)}
+.order-card h3{font-size:.95rem;margin-bottom:.5rem}
+.order-card .meta{font-size:.8rem;color:#64748b;display:flex;gap:1rem}
+/* 工序表格 */
+.task-table{width:100%;border-collapse:collapse}
+.task-table th{background:#0f172a;padding:.75rem 1rem;text-align:left;font-size:.85rem;color:#64748b;font-weight:500}
+.task-table td{padding:.75rem 1rem;border-bottom:1px solid #1e293b;font-size:.9rem}
+.task-table tr:hover td{background:rgba(56,189,248,.03)}
+.status-badge{display:inline-flex;align-items:center;gap:.3rem}
+/* 模态框 */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#1e293b;border-radius:12px;padding:2rem;width:90%;max-width:500px;border:1px solid #334155}
+.modal h3{margin-bottom:1.5rem;color:#38bdf8}
+.form-group{margin-bottom:1rem}
+.form-group label{display:block;margin-bottom:.3rem;font-size:.9rem;color:#cbd5e1}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:.6rem .8rem;border:1px solid #475569;border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:.9rem}
+.form-group textarea{resize:vertical;min-height:60px}
+.modal-actions{display:flex;gap:.75rem;margin-top:1.5rem}
+.modal-actions .btn{flex:1;text-align:center}
+.upload-area{border:2px dashed #475569;border-radius:8px;padding:1.5rem;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:1rem}
+.upload-area:hover{border-color:#38bdf8;background:rgba(56,189,248,.03)}
+.upload-area p{color:#64748b;font-size:.85rem}
+.photo-preview{max-width:200px;border-radius:6px;margin-top:.5rem;display:none}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📦 Move Hermes</h1>
+<nav>
+<a href="/dashboard">看板</a>
+<a href="/orders">订单</a>
+<a href="/tasks">工序</a>
+<a href="/recognize">识图</a>
+<a href="/customers">客户</a>
+<a href="/products">产品</a>
+<a href="/finance">财务</a>
+<a href="/alerts">预警</a>
+<a href="/卷料长度计算">卷料计算</a>
+</nav>
+</div>
+<div class="breadcrumb">
+<a href="/orders">订单列表</a> <span>/</span> <span>工序管理</span>
+</div>
+<div class="content" id="content">
+<div class="loading">⏳ 加载中...</div>
+</div>
+
+<!-- 添加工序弹窗 -->
+<div class="modal-overlay" id="addTaskModal">
+<div class="modal">
+<h3>添加工序</h3>
+<div class="form-group"><label>工序名称 *</label><input type="text" id="newTaskName" placeholder="如：加工、焊接、组装"></div>
+<div class="form-group"><label>工序序号 *</label><input type="number" id="newTaskSeq" placeholder="如：4"></div>
+<div class="form-group"><label>负责人</label><input type="text" id="newTaskWorker" placeholder="工人姓名"></div>
+<div class="modal-actions">
+<button class="btn" style="background:#475569;color:#e2e8f0" onclick="closeModal('addTaskModal')">取消</button>
+<button class="btn btn-primary" onclick="doAddTask()">添加</button>
+</div>
+</div>
+</div>
+
+<!-- 更新工序状态弹窗 -->
+<div class="modal-overlay" id="updateTaskModal">
+<div class="modal">
+<h3 id="updateTaskTitle">更新工序状态</h3>
+<div class="form-group"><label>状态</label>
+<select id="updateTaskStatus">
+<option value="pending">⏳ 待开工</option>
+<option value="in_progress">🔄 进行中</option>
+<option value="completed">✅ 已完成</option>
+</select>
+</div>
+<div class="form-group"><label>操作人</label><input type="text" id="updateTaskWorker" placeholder="当前操作人姓名"></div>
+<div class="form-group"><label>备注</label><textarea id="updateTaskNotes" placeholder="完成备注..."></textarea></div>
+<div class="form-group">
+<label>上传完工照片</label>
+<div class="upload-area" onclick="document.getElementById('taskPhotoInput').click()">
+<p>📷 点击选择照片</p>
+<input type="file" id="taskPhotoInput" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+<img id="photoPreview" class="photo-preview" alt="预览">
+</div>
+</div>
+<div class="modal-actions">
+<button class="btn" style="background:#475569;color:#e2e8f0" onclick="closeModal('updateTaskModal')">取消</button>
+<button class="btn btn-primary" onclick="doUpdateTask()">保存</button>
+</div>
+</div>
+</div>
+
+<!-- 批量开工弹窗 -->
+<div class="modal-overlay" id="batchModal">
+<div class="modal">
+<h3>批量开工</h3>
+<p style="color:#94a3b8;margin-bottom:1rem;font-size:.9rem">选择要批量开工的工序：</p>
+<div id="batchCheckboxes" style="max-height:300px;overflow-y:auto"></div>
+<div class="modal-actions">
+<button class="btn" style="background:#475569;color:#e2e8f0" onclick="closeModal('batchModal')">取消</button>
+<button class="btn btn-warning" onclick="doBatchStart()">批量开工</button>
+</div>
+</div>
+</div>
+
+<script>
+const API='/api';
+let selectedOrderId=null,selectedOrder=null;
+
+async function loadOrderList(){
+    try{
+        const r=await fetch(API+'/orders?page_size=50');
+        const data=await r.json();
+        renderOrderList(data.orders||[]);
+    }catch(e){
+        document.getElementById('content').innerHTML='<div class="empty-state"><h2>加载失败</h2><p>请检查后端服务</p></div>';
+    }
+}
+
+function renderOrderList(orders){
+    if(!orders.length){
+        document.getElementById('content').innerHTML='<div class="empty-state"><h2>暂无订单</h2><p>请先在订单列表中创建订单</p></div>';
+        return;
+    }
+    let html=`<div class="card"><h2>📋 选择订单</h2><div class="order-grid">`;
+    orders.forEach(function(o){
+        const pri=o.priority==='urgent'?' 🔥':'';
+        const statusMap={pending:'⏳ 待开工',producing:'🔄 生产中',completed:'✅ 已完成',shipped:'📦 已发货'};
+        html+='<div class="order-card" onclick="selectOrder('+o.id+')">\n<h3>'+esc(o.order_no)+pri+'</h3>\n<div class="meta">\n<span>'+esc(o.customer_name||'-')+'</span>\n<span>'+esc(o.product_name||'-')+'</span>\n<span>'+statusMap[o.status]||'-'+'</span>\n</div></div>';
+    });
+    html+='</div></div>';
+    document.getElementById('content').innerHTML=html;
+}
+
+async function selectOrder(id){
+    selectedOrderId=id;
+    try{
+        const r=await fetch(API+'/orders/'+id);
+        selectedOrder=await r.json();
+        renderTaskBoard(selectedOrder);
+    }catch(e){
+        alert('加载订单失败');
+    }
+}
+
+function renderTaskBoard(o){
+    const statusMap={pending:'<span class="badge badge-pending">⏳ 待开工</span>',in_progress:'<span class="badge badge-progress">🔄 进行中</span>',completed:'<span class="badge badge-done">✅ 已完成</span>'};
+    const priBadge=o.priority==='urgent'?'<span class="badge badge-urgent">🔥 加急</span>':'';
+    const completedCount=(o.tasks||[]).filter(function(t){return t.status==='completed';}).length;
+    const totalCount=(o.tasks||[]).length;
+    const pct=totalCount?Math.round(completedCount/totalCount*100):0;
+
+    let html=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+        <div>
+            <h2 style="font-size:1.3rem">${esc(o.order_no||'订单 #'+o.id)}</h2>
+            <p style="color:#64748b;font-size:.9rem;margin-top:.25rem">${esc(o.customer_name||'-')} — ${esc(o.product_name||'-')}</p>
+        </div>
+        <div style="display:flex;gap:.5rem">
+            <button class="btn btn-outline" onclick="location.href='/orders'">← 返回列表</button>
+            <button class="btn btn-primary" onclick="openAddTask()">+ 添加工序</button>
+            <button class="btn btn-warning" onclick="openBatchStart()">⚡ 批量开工</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 进度: ${completedCount}/${totalCount} (${pct}%)</h2>
+        <div style="background:#0f172a;border-radius:6px;height:8px;overflow:hidden;margin-bottom:.5rem">
+            <div style="background:linear-gradient(90deg,#38bdf8,#34d399);height:100%;width:${pct}%;border-radius:6px;transition:width .3s"></div>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:.85rem;color:#64748b">
+            <span>${statusMap.pending||''} ${getTaskCount(o.tasks,'pending')} 待开工</span>
+            <span>${statusMap.in_progress||''} ${getTaskCount(o.tasks,'in_progress')} 进行中</span>
+            <span>${statusMap.completed||''} ${getTaskCount(o.tasks,'completed')} 已完成</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🔧 工序列表</h2>
+        <table class="task-table">
+        <thead><tr><th>#</th><th>工序名称</th><th>状态</th><th>负责人</th><th>开始时间</th><th>完成时间</th><th>操作</th></tr></thead>
+        <tbody>`;
+
+    if(!o.tasks||!o.tasks.length){
+        html+='<tr><td colspan="7" style="text-align:center;padding:2rem;color:#64748b">暂无工序，点击「添加工序」开始创建</td></tr>';
+    } else {
+        o.tasks.sort(function(a,b){return a.sequence_num-b.sequence_num;});
+        o.tasks.forEach(function(t){
+            const done=t.status==='completed';
+            const prog=t.status==='in_progress';
+            const stall=t.is_stalled?' ⚠️':'';
+            html+='<tr style="'+(done?'opacity:.6':'')+(stall?'background:rgba(248,113,113,.05)':'')+'">\n<td style="color:#64748b">'+t.sequence_num+'</td>\n<td style="font-weight:600">'+esc(t.task_name)+stall+'</td>\n<td>'+statusMap[t.status]||'<span class="badge badge-pending">未知</span>'+'</td>\n<td>'+esc(t.worker_name||'-')+'</td>\n<td>'+fmtDate(t.started_at)+'</td>\n<td>'+fmtDate(t.completed_at)+'</td>\n<td>';
+            if(!done){
+                if(prog){
+                    html+='<button class="btn btn-sm btn-success" onclick="openUpdateTask('+t.id+',\''+esc(t.task_name)+'\',\'completed\')">✅ 完成</button> ';
+                } else {
+                    html+='<button class="btn btn-sm btn-warning" onclick="openUpdateTask('+t.id+',\''+esc(t.task_name)+'\',\'in_progress\')">▶ 开工</button> ';
+                }
+                html+='<button class="btn btn-sm btn-outline" onclick="openUpdateTask('+t.id+',\''+esc(t.task_name)+'\',\'pending\')">↩ 重置</button> ';
+            }
+            html+='<button class="btn btn-sm btn-outline" onclick="deleteTask('+t.id+','+selectedOrderId+')">删除</button></td></tr>';
+        });
+    }
+
+    html+='</tbody></table></div>';
+    document.getElementById('content').innerHTML=html;
+}
+
+function getTaskCount(tasks,status){
+    if(!tasks)return 0;
+    return tasks.filter(function(t){return t.status===status;}).length;
+}
+
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+function fmtDate(d){return d?d.replace('T',' ').substring(0,16):'-';}
+
+// 添加工序
+function openAddTask(){
+    document.getElementById('newTaskName').value='';
+    document.getElementById('newTaskSeq').value='';
+    document.getElementById('newTaskWorker').value='';
+    // 自动填充下一个序号
+    var maxSeq=0;
+    if(selectedOrder&&selectedOrder.tasks){
+        selectedOrder.tasks.forEach(function(t){if(t.sequence_num>maxSeq)maxSeq=t.sequence_num;});
+    }
+    document.getElementById('newTaskSeq').value=maxSeq+1;
+    document.getElementById('addTaskModal').classList.add('show');
+}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+
+async function doAddTask(){
+    var name=document.getElementById('newTaskName').value.trim();
+    var seq=parseInt(document.getElementById('newTaskSeq').value);
+    var worker=document.getElementById('newTaskWorker').value.trim();
+    if(!name||!seq){alert('请填写工序名称和序号');return;}
+    try{
+        var r=await fetch(API+'/orders/'+selectedOrderId+'/tasks',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({task_name:name,sequence_num:seq,worker_name:worker})
+        });
+        if(r.ok){closeModal('addTaskModal');loadOrderList();selectOrder(selectedOrderId);}
+        else alert('添加失败');
+    }catch(e){alert('添加失败');}
+}
+
+// 更新工序
+var currentTaskId=null;
+var photoFileName=null;
+
+function openUpdateTask(tid,tname,status){
+    currentTaskId=tid;
+    document.getElementById('updateTaskTitle').textContent='更新工序：'+tname;
+    document.getElementById('updateTaskStatus').value=status;
+    document.getElementById('updateTaskWorker').value='';
+    document.getElementById('updateTaskNotes').value='';
+    document.getElementById('photoPreview').style.display='none';
+    document.getElementById('taskPhotoInput').value='';
+    photoFileName=null;
+    document.getElementById('updateTaskModal').classList.add('show');
+}
+
+function previewPhoto(input){
+    if(input.files&&input.files[0]){
+        var reader=new FileReader();
+        reader.onload=function(e){
+            var img=document.getElementById('photoPreview');
+            img.src=e.target.result;
+            img.style.display='block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+async function doUpdateTask(){
+    var status=document.getElementById('updateTaskStatus').value;
+    var worker=document.getElementById('updateTaskWorker').value.trim();
+    var notes=document.getElementById('updateTaskNotes').value.trim();
+    try{
+        var r=await fetch(API+'/orders/tasks/'+currentTaskId+'/status',{
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({status:status,worker_name:worker,ai_notes:notes})
+        });
+        if(r.ok){closeModal('updateTaskModal');selectOrder(selectedOrderId);}
+        else{var err=await r.text();alert('更新失败: '+err);}
+    }catch(e){alert('更新失败');}
+}
+
+// 批量开工
+function openBatchStart(){
+    if(!selectedOrder||!selectedOrder.tasks)return;
+    var pending=selectedOrder.tasks.filter(function(t){return t.status==='pending';});
+    if(!pending.length){alert('没有待开工的工序');return;}
+    var html='';
+    pending.forEach(function(t){
+        html+='<label style="display:block;padding:.5rem;border-radius:4px;cursor:pointer" onmouseover="this.style.background=\'rgba(56,189,248,.05)\'" onmouseout="this.style.background=\'\'">\n<input type="checkbox" value="'+t.id+'" style="margin-right:.5rem">\n<span class="badge badge-pending">#'+t.sequence_num+'</span> '+esc(t.task_name)+'\n</label>';
+    });
+    document.getElementById('batchCheckboxes').innerHTML=html;
+    document.getElementById('batchModal').classList.add('show');
+}
+
+async function doBatchStart(){
+    var checked=document.querySelectorAll('#batchCheckboxes input:checked');
+    if(!checked.length){alert('请选择工序');return;}
+    var results=[];
+    for(var i=0;i<checked.length;i++){
+        try{
+            var tid=parseInt(checked[i].value);
+            var r=await fetch(API+'/orders/tasks/'+tid+'/status',{
+                method:'PUT',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({status:'in_progress'})
+            });
+            results.push(r.ok);
+        }catch(e){results.push(false);}
+    }
+    var okCount=results.filter(function(r){return r;}).length;
+    alert('成功开工 '+okCount+'/'+checked.length+' 道工序');
+    closeModal('batchModal');
+    selectOrder(selectedOrderId);
+}
+
+// 删除工序
+async function deleteTask(tid,oid){
+    if(!confirm('确定删除此工序？'))return;
+    try{
+        var r=await fetch(API+'/orders/tasks/'+tid,{method:'DELETE'});
+        if(r.ok)selectOrder(oid);
+        else alert('删除失败');
+    }catch(e){alert('删除失败');}
+}
+
+// 点击遮罩关闭
+document.querySelectorAll('.modal-overlay').forEach(function(m){
+    m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
+});
+
+// 初始化
+loadOrderList();
+</script>
+</body>
+</html>

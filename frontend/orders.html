@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Move Hermes — 订单列表</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+        .header{background:#1e293b;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155}
+        .header h1{font-size:1.25rem;color:#38bdf8}
+        .header nav a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
+        .header nav a:hover,.header nav a.active{color:#38bdf8}
+        .toolbar{padding:1rem 2rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+        .toolbar input,.toolbar select{padding:.5rem .75rem;border:1px solid #475569;border-radius:6px;background:#1e293b;color:#e2e8f0;font-size:.9rem}
+        .toolbar input:focus,.toolbar select:focus{outline:none;border-color:#38bdf8}
+        .btn{padding:.5rem 1rem;border:none;border-radius:6px;font-size:.9rem;cursor:pointer}
+        .btn-primary{background:#38bdf8;color:#0f172a;font-weight:600}
+        .btn-sm{padding:.3rem .6rem;font-size:.8rem}
+        .btn-danger{background:#f87171;color:#fff}
+        .content{padding:0 2rem 2rem}
+        .table-container{background:#1e293b;border-radius:10px;border:1px solid #334155;overflow:hidden}
+        table{width:100%;border-collapse:collapse}
+        th{background:#0f172a;padding:.75rem 1rem;text-align:left;font-size:.85rem;color:#64748b;font-weight:500}
+        td{padding:.75rem 1rem;border-bottom:1px solid #1e293b;font-size:.9rem}
+        tr:hover td{background:rgba(56,189,248,.03)}
+        .empty-state{text-align:center;padding:4rem 2rem;color:#64748b}
+        .empty-state h2{font-size:1.5rem;margin-bottom:.5rem;color:#94a3b8}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+        .modal-overlay.show{display:flex}
+        .modal{background:#1e293b;border-radius:12px;padding:2rem;width:90%;max-width:600px;border:1px solid #334155;max-height:80vh;overflow-y:auto}
+        .modal h2{margin-bottom:1.5rem;color:#38bdf8}
+        .form-group{margin-bottom:1rem}
+        .form-group label{display:block;margin-bottom:.3rem;font-size:.9rem;color:#cbd5e1}
+        .form-group input,.form-group select,.form-group textarea{width:100%;padding:.6rem .8rem;border:1px solid #475569;border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:.9rem}
+        .form-group textarea{resize:vertical;min-height:60px}
+        .modal-actions{display:flex;gap:.75rem;margin-top:1.5rem}
+        .modal-actions .btn{flex:1;text-align:center}
+        .actions-cell{display:flex;gap:.4rem}
+        .badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.8rem;font-weight:500}
+        .badge-done{background:rgba(52,211,153,.15);color:#34d399}
+        .badge-progress{background:rgba(56,189,248,.15);color:#38bdf8}
+        .badge-pending{background:rgba(148,163,184,.15);color:#94a3b8}
+        .badge-urgent{background:rgba(248,113,113,.15);color:#f87171}
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>📦 Move Hermes</h1>
+    <nav>
+        <a href="/dashboard">看板</a>
+        <a href="/orders">订单</a>
+        <a href="/tasks">工序</a>
+        <a href="/recognize">识图</a>
+        <a href="/customers">客户</a>
+        <a href="/products">产品</a>
+        <a href="/finance">财务</a>
+        <a href="/alerts">预警</a>
+        <a href="/卷料长度计算">卷料计算</a>
+    </nav>
+</div>
+<div class="toolbar">
+    <input type="text" id="searchInput" placeholder="搜索订单号、客户..." oninput="loadOrders()">
+    <select id="statusFilter" onchange="loadOrders()"><option value="">全部状态</option><option value="pending">待开工</option><option value="producing">生产中</option><option value="completed">已完成</option><option value="shipped">已发货</option></select>
+    <select id="priorityFilter" onchange="loadOrders()"><option value="">全部优先级</option><option value="urgent">加急</option><option value="normal">普通</option></select>
+    <button class="btn btn-primary" onclick="openCreateModal()">+ 新建订单</button>
+</div>
+<div class="content">
+    <div class="table-container">
+        <table>
+            <thead><tr><th>订单号</th><th>客户</th><th>产品</th><th>数量</th><th>优先级</th><th>状态</th><th>创建日期</th><th>操作</th></tr></thead>
+            <tbody id="ordersBody"><tr><td colspan="8"><div class="empty-state"><p>加载中...</p></div></td></tr></tbody>
+        </table>
+    </div>
+</div>
+<div class="modal-overlay" id="orderModal">
+    <div class="modal">
+        <h2 id="modalTitle">新建订单</h2>
+        <div class="form-group"><label>订单编号（留空自动生成）</label><input type="text" id="orderNo" placeholder="ORD-20260624-001"></div>
+        <div class="form-group"><label>客户</label><input type="text" id="orderCustomer" placeholder="客户名称"></div>
+        <div class="form-group"><label>产品</label><input type="text" id="orderProduct" placeholder="产品名称"></div>
+        <div style="display:flex;gap:1rem"><div class="form-group" style="flex:1"><label>数量</label><input type="number" id="orderQuantity" placeholder="0"></div><div class="form-group" style="flex:1"><label>单价</label><input type="number" id="orderPrice" placeholder="0.00"></div></div>
+        <div class="form-group"><label>优先级</label><select id="orderPriority"><option value="normal">普通</option><option value="urgent">加急</option></select></div>
+        <div class="form-group"><label>备注</label><textarea id="orderNotes" placeholder="特殊要求..."></textarea></div>
+        <div class="modal-actions">
+            <button class="btn" style="background:#475569;color:#e2e8f0" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveOrder()">保存</button>
+        </div>
+    </div>
+</div>
+<script>
+const API='/api';let editingId=null;
+async function loadOrders(){
+    var s=document.getElementById('searchInput').value,st=document.getElementById('statusFilter').value,pr=document.getElementById('priorityFilter').value;
+    var url=API+'/orders?';
+    if(s)url+='search='+encodeURIComponent(s)+'&';
+    if(st)url+='status='+st+'&';
+    if(pr)url+='priority='+pr;
+    try{var r=await fetch(url);renderOrders(await r.json());}catch(e){
+    document.getElementById('ordersBody').innerHTML='<tr><td colspan="8"><div class="empty-state"><h2>暂无订单</h2><p>点击新建订单创建，或先启动后端服务</p></div></td></tr>';}
+}
+function renderOrders(orders){
+    var tb=document.getElementById('ordersBody');
+    if(!orders||!orders.length){tb.innerHTML='<tr><td colspan="8"><div class="empty-state"><h2>暂无订单</h2><p>点击新建订单创建第一个订单</p></div></td></tr>';return;}
+    tb.innerHTML=orders.map(function(o){
+        var sn=o.order_no||o.id,cn=o.customer_name||o.customer||'-',pn=o.product_name||o.product||'-',q=o.quantity||'-',dt=formatDate(o.created_at);
+        var pri=o.priority==='urgent'?'<span class="badge badge-urgent">🔥 加急</span>':'<span class="badge badge-pending">普通</span>';
+        var st=getStatusBadge(o.status);
+        return '<tr><td><a href="/order-detail?id='+o.id+'" style="color:#38bdf8;text-decoration:none;font-weight:600">'+esc(sn)+'</a></td><td>'+esc(cn)+'</td><td>'+esc(pn)+'</td><td>'+q+'</td><td>'+pri+'</td><td>'+st+'</td><td>'+dt+'</td><td class="actions-cell"><button class="btn btn-sm btn-primary" onclick="editOrder(\\''+esc(String(o.id||o.order_no))+'\\')">编辑</button><button class="btn btn-sm btn-danger" onclick="deleteOrder(\\''+esc(String(o.id||o.order_no))+'\\')">删除</button></td></tr>';
+    }).join('');
+}
+function getStatusBadge(s){var m={pending:'<span class="badge badge-pending">⏳ 待开工</span>',producing:'<span class="badge badge-progress">🔄 生产中</span>',completed:'<span class="badge badge-done">✅ 已完成</span>',shipped:'<span class="badge badge-done">📦 已发货</span>'};return m[s]||m.pending;}
+function openCreateModal(){editingId=null;document.getElementById('modalTitle').textContent='新建订单';['orderNo','orderCustomer','orderProduct','orderQuantity','orderPrice','orderNotes'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('orderPriority').value='normal';document.getElementById('orderModal').classList.add('show');}
+function closeModal(){document.getElementById('orderModal').classList.remove('show');}
+async function saveOrder(){
+    var o={order_no:document.getElementById('orderNo').value,customer:document.getElementById('orderCustomer').value,product:document.getElementById('orderProduct').value,quantity:parseFloat(document.getElementById('orderQuantity').value)||0,unit_price:parseFloat(document.getElementById('orderPrice').value)||0,priority:document.getElementById('orderPriority').value,notes:document.getElementById('orderNotes').value};
+    if(!o.customer||!o.product||!o.quantity){alert('请填写客户、产品和数量');return;}
+    try{var u=editingId?API+'/orders/'+editingId:API+'/orders';var m=editingId?'PUT':'POST';var r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify(o)});if(r.ok){closeModal();loadOrders();}else alert('保存失败');}catch(e){alert('保存失败');}
+}
+async function deleteOrder(id){if(!confirm('确定删除此订单？'))return;try{var r=await fetch(API+'/orders/'+id,{method:'DELETE'});if(r.ok)loadOrders();}catch(e){alert('删除失败');}}
+function editOrder(id){editingId=id;document.getElementById('modalTitle').textContent='编辑订单';document.getElementById('orderModal').classList.add('show');}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+function formatDate(d){return d?d.replace('T',' ').substring(0,16):'-';}
+document.getElementById('orderModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+loadOrders();
+</script>
+</body>
+</html>

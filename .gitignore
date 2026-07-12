@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Database
+*.db
+*.sqlite3
+
+# Photos/Data
+data/photos/*.jpg
+data/photos/*.jpeg
+data/photos/*.png
+data/photos/*.webp
+
+# Logs
+*.log
+dataservice.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+*.docx
+*.xlsx
+*.pdf

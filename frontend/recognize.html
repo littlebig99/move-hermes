@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Move Hermes — 识图建单</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.header{background:#1e293b;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155}
+.header h1{font-size:1.25rem;color:#38bdf8}
+.header nav a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
+.header nav a:hover,.header nav a.active{color:#38bdf8}
+.breadcrumb{padding:1rem 2rem;display:flex;gap:.5rem;align-items:center;font-size:.9rem;color:#64748b}
+.breadcrumb a{color:#38bdf8;text-decoration:none}
+.content{padding:0 2rem 2rem;max-width:1000px;margin:0 auto}
+.card{background:#1e293b;border-radius:10px;border:1px solid #334155;padding:1.5rem;margin-bottom:1.5rem}
+.card h2{font-size:1.1rem;margin-bottom:1rem;color:#e2e8f0}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.8rem;font-weight:500}
+.badge-done{background:rgba(52,211,153,.15);color:#34d399}
+.badge-progress{background:rgba(56,189,248,.15);color:#38bdf8}
+.badge-pending{background:rgba(148,163,184,.15);color:#94a3b8}
+.badge-urgent{background:rgba(248,113,113,.15);color:#f87171}
+.btn{padding:.5rem 1rem;border:none;border-radius:6px;font-size:.9rem;cursor:pointer}
+.btn-primary{background:#38bdf8;color:#0f172a;font-weight:600}
+.btn-success{background:#34d399;color:#0f172a}
+.btn-warning{background:#fbbf24;color:#0f172a}
+.btn-outline{background:transparent;border:1px solid #475569;color:#94a3b8}
+.btn-outline:hover{border-color:#38bdf8;color:#38bdf8}
+.drop-zone{border:2px dashed #475569;border-radius:12px;padding:3rem;text-align:center;cursor:pointer;transition:all .3s;position:relative}
+.drop-zone:hover,.drop-zone.dragover{border-color:#38bdf8;background:rgba(56,189,248,.05)}
+.drop-zone .icon{font-size:3rem;margin-bottom:1rem}
+.drop-zone p{color:#64748b;font-size:.95rem}
+.drop-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.preview-area{display:none;margin-top:1.5rem;text-align:center}
+.preview-area.show{display:block}
+.preview-area img{max-width:100%;max-height:400px;border-radius:8px;border:1px solid #334155}
+.result-area{display:none;margin-top:1.5rem}
+.result-area.show{display:block}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem}
+.result-item{background:#0f172a;border-radius:8px;padding:.75rem;border:1px solid #1e293b}
+.result-item .label{font-size:.75rem;color:#64748b;margin-bottom:.25rem}
+.result-item .value{font-size:1rem;font-weight:600;color:#e2e8f0}
+.confidence-bar{background:#0f172a;border-radius:4px;height:6px;margin-top:.5rem;overflow:hidden}
+.confidence-fill{height:100%;border-radius:4px;transition:width .5s}
+.loading-spinner{text-align:center;padding:2rem;color:#64748b}
+.loading-spinner .spinner{width:40px;height:40px;border:3px solid #334155;border-top-color:#38bdf8;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.mode-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem}
+.mode-tab{padding:.5rem 1.25rem;border:1px solid #475569;border-radius:6px;background:transparent;color:#94a3b8;cursor:pointer;font-size:.9rem}
+.mode-tab.active{background:#38bdf8;color:#0f172a;border-color:#38bdf8;font-weight:600}
+.auto-create-section{margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #334155}
+.info-box{background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.2);border-radius:8px;padding:1rem;margin-bottom:1.5rem;font-size:.9rem;color:#94a3b8}
+.info-box strong{color:#38bdf8}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📦 Move Hermes</h1>
+<nav>
+<a href="/dashboard">看板</a>
+<a href="/orders">订单</a>
+<a href="/tasks">工序</a>
+<a href="/customers">客户</a>
+<a href="/products">产品</a>
+<a href="/finance">财务</a>
+<a href="/alerts">预警</a>
+<a href="/卷料长度计算">卷料计算</a>
+</nav>
+</div>
+<div class="breadcrumb">
+<a href="/dashboard">看板</a> <span>/</span> <span>识图建单</span>
+</div>
+<div class="content">
+<div class="info-box">
+<strong>📷 识图建单</strong> — 上传订单照片，系统自动识别订单信息并创建订单。<br>
+支持：采购订单、送货单、报价单、工单等图片。<br>
+未配置AI API时自动使用本地OCR识别。
+</div>
+
+<!-- 模式切换 -->
+<div class="mode-tabs">
+<button class="mode-tab active" onclick="switchMode('order')">📋 订单识别</button>
+<button class="mode-tab" onclick="switchMode('production')">🔧 工单识别</button>
+</div>
+
+<!-- 上传区域 -->
+<div class="card">
+<h2>📤 上传图片</h2>
+<div class="drop-zone" id="dropZone">
+<div class="icon">📷</div>
+<p>拖拽图片到此处，或点击选择文件</p>
+<p style="font-size:.8rem;margin-top:.5rem">支持 JPG/PNG/WebP，最大 10MB</p>
+<input type="file" id="fileInput" accept="image/*" onchange="handleFile(this.files[0])">
+</div>
+<div class="preview-area" id="previewArea">
+<img id="previewImg" src="" alt="预览">
+<p style="margin-top:.5rem;color:#64748b;font-size:.85rem" id="fileName"></p>
+</div>
+</div>
+
+<!-- 识别结果 -->
+<div class="card result-area" id="resultArea">
+<h2>🔍 识别结果</h2>
+<div id="resultContent"></div>
+</div>
+</div>
+
+<script>
+const API='/api';
+let currentMode='order';
+let currentFile=null,currentBase64=null;
+
+function switchMode(mode){
+    currentMode=mode;
+    document.querySelectorAll('.mode-tab').forEach(function(t){t.classList.remove('active');});
+    event.target.classList.add('active');
+    document.getElementById('resultArea').classList.remove('show');
+    document.getElementById('previewArea').classList.remove('show');
+}
+
+// 拖拽支持
+var dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',function(e){e.preventDefault();this.classList.add('dragover');});
+dz.addEventListener('dragleave',function(){this.classList.remove('dragover');});
+dz.addEventListener('drop',function(e){
+    e.preventDefault();this.classList.remove('dragover');
+    if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file){
+    if(!file||!file.type.startsWith('image/')){alert('请选择图片文件');return;}
+    if(file.size>10*1024*1024){alert('图片过大，最大10MB');return;}
+    currentFile=file;
+    
+    // 显示预览
+    var reader=new FileReader();
+    reader.onload=function(e){
+        document.getElementById('previewImg').src=e.target.result;
+        document.getElementById('fileName').textContent=file.name+' ('+formatSize(file.size)+')';
+        document.getElementById('previewArea').classList.add('show');
+    };
+    reader.readAsDataURL(file);
+    
+    // 转base64
+    var reader2=new FileReader();
+    reader2.onload=function(e){
+        currentBase64=e.target.result.split(',')[1];
+        recognize();
+    };
+    reader2.readAsBinaryString(file);
+}
+
+function formatSize(bytes){
+    if(bytes<1024)return bytes+'B';
+    if(bytes<1024*1024)return(bytes/1024).toFixed(1)+'KB';
+    return(bytes/(1024*1024)).toFixed(1)+'MB';
+}
+
+async function recognize(){
+    var content=document.getElementById('resultContent');
+    content.innerHTML='<div class="loading-spinner"><div class="spinner"></div><p>正在识别中...</p></div>';
+    document.getElementById('resultArea').classList.add('show');
+    
+    try{
+        var formData=new FormData();
+        formData.append('file',currentFile);
+        formData.append('purpose',currentMode);
+        
+        var r=await fetch(API+'/photos/parse',{method:'POST',body:formData});
+        var data=await r.json();
+        
+        if(data.success){
+            renderResult(data.data);
+        }else{
+            var errorMsg=esc(data.error||'未知错误');
+            var guideMsg='';
+            if(data.error && data.error.includes('未配置AI')){
+                guideMsg='<div style="margin-top:1rem;padding:1rem;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px">';
+                guideMsg+='<p style="color:#fbbf24;font-weight:600;margin-bottom:.5rem">⚠️ 未配置AI识别</p>';
+                guideMsg+='<p style="color:#94a3b8;font-size:.85rem;margin-bottom:.75rem">识别功能需要配置AI API。有两种方式：</p>';
+                guideMsg+='<ol style="color:#94a3b8;font-size:.85rem;padding-left:1.2rem;margin-bottom:.75rem">';
+                guideMsg+='<li style="margin-bottom:.5rem"><strong style="color:#38bdf8">推荐：配置AI API</strong> — 前往「配置」页面设置API Key，支持OpenAI/Claude/阿里云等</li>';
+                guideMsg+='<li><strong style="color:#38bdf8">备选：安装Tesseract OCR</strong> — 安装tesseract-ocr后可使用本地识别（准确率较低）</li>';
+                guideMsg+='</ol>';
+                guideMsg+='<a href="/config" class="btn btn-primary" style="display:inline-block;text-decoration:none">⚙️ 前往配置</a>';
+                guideMsg+='</div>';
+            }
+            content.innerHTML='<div class="empty-state"><h2>识别失败</h2><p>'+errorMsg+'</p></div>'+guideMsg;
+        }
+    }catch(e){
+        content.innerHTML='<div class="empty-state"><h2>请求失败</h2><p>'+esc(e.message)+'</p></div>';
+    }
+}
+
+function renderResult(d){
+    var html='';
+    
+    if(currentMode==='order'){
+        html='<div class="result-grid">';
+        html+=fieldCard('订单编号',d.order_no);
+        html+=fieldCard('客户名称',d.customer);
+        html+=fieldCard('产品名称',d.product);
+        html+=fieldCard('数量',d.quantity!=null?d.quantity:'-');
+        html+=fieldCard('单位',d.unit||'件');
+        html+=fieldCard('单价',d.unit_price!=null?'¥'+d.unit_price:'-');
+        html+=fieldCard('总金额',d.total_amount!=null?'¥'+d.total_amount:'-');
+        html+=fieldCard('交货日期',d.delivery_date||'-');
+        html+=fieldCard('优先级',d.priority==='urgent'?'<span class="badge badge-urgent">🔥 加急</span>':'普通');
+        html+=fieldCard('备注',d.notes||'-');
+        html+='</div>';
+        
+        // 置信度
+        var conf=d.confidence||0;
+        var confColor=conf>=0.7?'#34d399':conf>=0.4?'#fbbf24':'#f87171';
+        html+='<div style="margin-top:1.5rem"><p style="font-size:.85rem;color:#64748b;margin-bottom:.5rem">识别置信度</p>';
+        html+='<div class="confidence-bar"><div class="confidence-fill" style="width:'+Math.round(conf*100)+'%;background:'+confColor+'"></div></div>';
+        html+='<p style="font-size:.8rem;color:'+confColor+';margin-top:.25rem">'+Math.round(conf*100)+'%</p>';
+        html+='</div>';
+        
+        // 来源
+        if(d.source==='ocr'||d.source==='ocr_fallback'){
+            html+='<p style="margin-top:1rem;font-size:.8rem;color:#64748b">ℹ️ 使用本地OCR识别（未配置AI API）</p>';
+        }
+        
+        // 自动创建订单
+        html+='<div class="auto-create-section">';
+        html+='<h3 style="font-size:1rem;margin-bottom:1rem">🚀 快速操作</h3>';
+        html+='<button class="btn btn-primary" onclick="autoCreateOrder()">✨ 自动创建订单</button> ';
+        html+='<button class="btn btn-outline" onclick="copyResult()">📋 复制结果</button>';
+        html+='</div>';
+        
+    } else {
+        // 工单识别
+        html='<div class="result-grid">';
+        html+=fieldCard('工序名称',d.task_name);
+        html+=fieldCard('完成数量',d.quantity!=null?d.quantity:'-');
+        html+=fieldCard('工人姓名',d.worker_name||'-');
+        html+=fieldCard('日期',d.date||'-');
+        html+='</div>';
+        
+        if(d.notes){
+            html+='<div style="margin-top:1rem;padding:1rem;background:#0f172a;border-radius:6px;font-size:.9rem">';
+            html+='<span style="color:#64748b">备注：</span>'+esc(d.notes);
+            html+='</div>';
+        }
+    }
+    
+    document.getElementById('resultContent').innerHTML=html;
+}
+
+function fieldCard(label,value){
+    return '<div class="result-item"><div class="label">'+label+'</div><div class="value">'+(value||'-')+'</div></div>';
+}
+
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+
+async function autoCreateOrder(){
+    if(!currentFile)return;
+    try{
+        var fd=new FormData();
+        fd.append('file',currentFile);
+        var r=await fetch(API+'/photos/auto-create-order',{method:'POST',body:fd});
+        var data=await r.json();
+        if(data.success){
+            if(data.needs_selection){
+                alert('AI识别成功！\n\n客户：'+(data.parsed.customer||'未识别')+'\n产品：'+(data.parsed.product||'未识别')+'\n数量：'+(data.parsed.quantity||'-')+'\n\n请手动填写客户和产品后创建订单。');
+            } else if(data.order){
+                alert('订单创建成功！\n订单号：'+data.order.order_no+'\n客户：'+data.order.customer_name+'\n产品：'+data.order.product_name);
+                location.href='/orders';
+            }
+        } else {
+            alert('创建失败：'+(data.error||'未知错误'));
+        }
+    }catch(e){alert('请求失败：'+e.message);}
+}
+
+function copyResult(){
+    var items=document.querySelectorAll('.result-item');
+    var text='';
+    items.forEach(function(item){
+        var label=item.querySelector('.label').textContent;
+        var value=item.querySelector('.value').textContent;
+        text+=label+': '+value+'\n';
+    });
+    navigator.clipboard.writeText(text).then(function(){
+        alert('结果已复制到剪贴板');
+    }).catch(function(){
+        alert('复制失败，请手动复制');
+    });
+}
+</script>
+</body>
+</html>

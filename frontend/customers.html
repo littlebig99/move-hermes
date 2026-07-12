@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Move Hermes — 客户管理</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+        .header{background:#1e293b;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155}
+        .header h1{font-size:1.25rem;color:#38bdf8}
+        .header nav a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
+        .header nav a:hover,.header nav a.active{color:#38bdf8}
+        .toolbar{padding:1rem 2rem;display:flex;gap:1rem;align-items:center}
+        .toolbar input{padding:.5rem .75rem;border:1px solid #475569;border-radius:6px;background:#1e293b;color:#e2e8f0;font-size:.9rem;flex:1;max-width:400px}
+        .toolbar input:focus{outline:none;border-color:#38bdf8}
+        .btn{padding:.5rem 1rem;border:none;border-radius:6px;font-size:.9rem;cursor:pointer}
+        .btn-primary{background:#38bdf8;color:#0f172a;font-weight:600}
+        .btn-sm{padding:.3rem .6rem;font-size:.8rem}
+        .btn-danger{background:#f87171;color:#fff}
+        .content{padding:0 2rem 2rem}
+        .table-container{background:#1e293b;border-radius:10px;border:1px solid #334155;overflow:hidden}
+        table{width:100%;border-collapse:collapse}
+        th{background:#0f172a;padding:.75rem 1rem;text-align:left;font-size:.85rem;color:#64748b;font-weight:500}
+        td{padding:.75rem 1rem;border-bottom:1px solid #1e293b;font-size:.9rem}
+        tr:hover td{background:rgba(56,189,248,.03)}
+        .empty-state{text-align:center;padding:4rem 2rem;color:#64748b}
+        .empty-state h2{font-size:1.5rem;margin-bottom:.5rem;color:#94a3b8}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+        .modal-overlay.show{display:flex}
+        .modal{background:#1e293b;border-radius:12px;padding:2rem;width:90%;max-width:500px;border:1px solid #334155}
+        .modal h2{margin-bottom:1.5rem;color:#38bdf8}
+        .form-group{margin-bottom:1rem}
+        .form-group label{display:block;margin-bottom:.3rem;font-size:.9rem;color:#cbd5e1}
+        .form-group input{width:100%;padding:.6rem .8rem;border:1px solid #475569;border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:.9rem}
+        .form-group input:focus{outline:none;border-color:#38bdf8}
+        .modal-actions{display:flex;gap:.75rem;margin-top:1.5rem}
+        .modal-actions .btn{flex:1;text-align:center}
+        .actions-cell{display:flex;gap:.4rem}
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>📦 Move Hermes</h1>
+    <nav>
+        <a href="/dashboard">看板</a>
+        <a href="/orders">订单</a>
+        <a href="/tasks">工序</a>
+        <a href="/recognize">识图</a>
+        <a href="/customers">客户</a>
+        <a href="/products">产品</a>
+        <a href="/finance">财务</a>
+        <a href="/alerts">预警</a>
+        <a href="/卷料长度计算">卷料计算</a>
+    </nav>
+</div>
+<div class="toolbar">
+    <input type="text" id="searchInput" placeholder="搜索客户名称、电话..." oninput="loadCustomers()">
+    <button class="btn btn-primary" onclick="openCreateModal()">+ 新增客户</button>
+</div>
+<div class="content">
+    <div class="table-container">
+        <table>
+            <thead><tr><th>客户名称</th><th>联系人</th><th>电话</th><th>地址</th><th>创建日期</th><th>操作</th></tr></thead>
+            <tbody id="customersBody"><tr><td colspan="6"><div class="empty-state"><p>加载中...</p></div></td></tr></tbody>
+        </table>
+    </div>
+</div>
+<div class="modal-overlay" id="customerModal">
+    <div class="modal">
+        <h2 id="modalTitle">新增客户</h2>
+        <div class="form-group"><label>客户名称 *</label><input type="text" id="custName" placeholder="公司名称"></div>
+        <div class="form-group"><label>联系人</label><input type="text" id="custContact" placeholder="联系人姓名"></div>
+        <div class="form-group"><label>电话</label><input type="text" id="custPhone" placeholder="联系电话"></div>
+        <div class="form-group"><label>地址</label><input type="text" id="custAddress" placeholder="详细地址"></div>
+        <div class="modal-actions">
+            <button class="btn" style="background:#475569;color:#e2e8f0" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveCustomer()">保存</button>
+        </div>
+    </div>
+</div>
+<script>
+const API='/api';let editingId=null;
+async function loadCustomers(){
+    const s=document.getElementById('searchInput').value;
+    let url=API+'/customers';
+    if(s)url+='?search='+encodeURIComponent(s);
+    try{const r=await fetch(url);renderCustomers(await r.json());}catch(e){
+    document.getElementById('customersBody').innerHTML='<tr><td colspan="6"><div class="empty-state"><h2>暂无客户</h2><p>点击新增客户创建</p></div></td></tr>';}
+}
+function renderCustomers(cs){
+    const tb=document.getElementById('customersBody');
+    if(!cs||!cs.length){tb.innerHTML='<tr><td colspan="6"><div class="empty-state"><h2>暂无客户</h2><p>点击新增客户创建</p></div></td></tr>';return;}
+    tb.innerHTML=cs.map(c=>'<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(c.contact||'-')+'</td><td>'+esc(c.phone||'-')+'</td><td>'+esc(c.address||'-')+'</td><td>'+fmt(c.created_at)+'</td><td class="actions-cell"><button class="btn btn-sm btn-primary" onclick="editCustomer('+c.id+')">编辑</button><button class="btn btn-sm btn-danger" onclick="delCustomer('+c.id+')">删除</button></td></tr>').join('');
+}
+function openCreateModal(){editingId=null;document.getElementById('modalTitle').textContent='新增客户';['custName','custContact','custPhone','custAddress'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('customerModal').classList.add('show');}
+function closeModal(){document.getElementById('customerModal').classList.remove('show');}
+async function saveCustomer(){
+    var name=document.getElementById('custName').value.trim();
+    if(!name){alert('请填写客户名称');return;}
+    var d={name:name,contact:document.getElementById('custContact').value.trim(),phone:document.getElementById('custPhone').value.trim(),address:document.getElementById('custAddress').value.trim()};
+    try{var u=editingId?API+'/customers/'+editingId:API+'/customers';var m=editingId?'PUT':'POST';var r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});if(r.ok){closeModal();loadCustomers();}else alert('保存失败');}catch(e){alert('保存失败');}
+}
+async function delCustomer(id){if(!confirm('确定删除？'))return;try{var r=await fetch(API+'/customers/'+id,{method:'DELETE'});if(r.ok)loadCustomers();}catch(e){alert('删除失败');}}
+async function editCustomer(id){editingId=id;document.getElementById('modalTitle').textContent='编辑客户';try{var r=await fetch(API+'/customers/'+id);var c=await r.json();document.getElementById('custName').value=c.name||'';document.getElementById('custContact').value=c.contact||'';document.getElementById('custPhone').value=c.phone||'';document.getElementById('custAddress').value=c.address||'';document.getElementById('customerModal').classList.add('show');}catch(e){alert('加载失败');}}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+function fmt(d){return d?d.replace('T',' ').substring(0,16):'-';}
+document.getElementById('customerModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+loadCustomers();
+</script>
+</body>
+</html>

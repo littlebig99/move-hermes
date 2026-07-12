@@ -6,15 +6,25 @@ import os
 import sys
 import uvicorn
 from pathlib import Path
-
-# 确保项目根目录在路径中
-PROJECT_ROOT = Path(__file__).parent.resolve()
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+
+# ==================== 路径配置 ====================
+
+PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+DATA_DIR = PROJECT_ROOT / "data"
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
+
+# 确保数据目录存在
+DATA_DIR.mkdir(exist_ok=True)
+
+# 数据库初始化
+import database as db
+db.init_db()
+
+# ==================== 应用创建 ====================
 
 app = FastAPI(
     title="Move Hermes",
@@ -23,106 +33,161 @@ app = FastAPI(
 )
 
 # CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# ==================== 路径配置 ====================
+# ==================== 导入路由 ====================
 
-def get_data_dir():
-    """获取数据目录（U盘上的data文件夹）"""
-    script_dir = PROJECT_ROOT
-    data_dir = script_dir / "data"
-    data_dir.mkdir(exist_ok=True)
-    return data_dir
+from api_orders import router as orders_router
+from api_customers import router as customers_router
+from api_products import router as products_router
+from api_photos import router as photos_router
+from api_config import router as config_router
+from api_webhooks import router as webhooks_router
 
-def get_db_path():
-    """获取数据库路径"""
-    return get_data_dir() / "move_hermes.db"
+app.include_router(orders_router)
+app.include_router(customers_router)
+app.include_router(products_router)
+app.include_router(photos_router)
+app.include_router(config_router)
+app.include_router(webhooks_router)
 
-def get_static_dir():
-    """获取前端静态资源目录"""
-    return PROJECT_ROOT / "frontend"
 
-def get_api_config():
-    """获取API配置"""
-    config_path = get_data_dir() / "api_config.json"
-    if config_path.exists():
-        import json
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return None
+# ==================== 前端页面路由 ====================
+
+PAGE_FILES = {
+    "/": "dashboard.html",
+    "/config": "config.html",
+    "/dashboard": "dashboard.html",
+    "/orders": "orders.html",
+    "/customers": "customers.html",
+    "/products": "products.html",
+    "/alerts": "alerts.html",
+    "/order-detail": "order-detail.html",
+    "/tasks": "tasks.html",
+    "/finance": "finance.html",
+    "/recognize": "recognize.html",
+    "/卷料长度计算": "卷料长度计算.html",
+}
+
+
+def _is_configured() -> bool:
+    """检查 AI 配置是否存在"""
+    try:
+        return db.get_api_config() is not None
+    except Exception:
+        return False
+
+
+for route, page in PAGE_FILES.items():
+    @app.get(route)
+    async def _route_page(_page=page, _route=route):
+        # 除 /config 和 /health 外，其他页面都检查配置
+        if _route not in ("/config", "/health"):
+            if not _is_configured():
+                return RedirectResponse(url="/config", status_code=302)
+        
+        fp = FRONTEND_DIR / _page
+        if fp.exists():
+            return FileResponse(fp)
+        return {"error": f"Page {_page} not found"}
+
+
+# ==================== 静态文件服务 ====================
+
+# 前端静态文件
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+# 上传的照片文件
+PHOTO_DIR = DATA_DIR / "photos"
+PHOTO_DIR.mkdir(exist_ok=True)
+if PHOTO_DIR.exists():
+    app.mount("/data/photos", StaticFiles(directory=str(PHOTO_DIR)), name="photos")
+
+
+@app.get("/data/photos/{filename}")
+async def serve_photo(filename: str):
+    """提供上传的照片"""
+    filepath = PHOTO_DIR / filename
+    if filepath.exists() and filepath.is_file():
+        return FileResponse(filepath)
+    raise HTTPException(404, "照片不存在")
+
 
 # ==================== 健康检查 ====================
 
 @app.get("/health")
 async def health_check():
-    """健康检查端点"""
+    """健康检查端点 — 不暴露内部路径"""
+    from services.disk_monitor import get_storage_overview
+    
+    storage = get_storage_overview(str(DATA_DIR))
+    
     return {
         "status": "ok",
         "version": "0.1.0",
-        "data_dir": str(get_data_dir()),
-        "db_path": str(get_db_path())
+        "ai_configured": _is_configured(),
+        "storage": storage["disk"]
     }
 
-# ==================== 前端页面路由 ====================
 
-@app.get("/")
-async def root():
-    """重定向到看板首页"""
-    return FileResponse(get_static_dir() / "dashboard.html")
+# ==================== 磁盘监控 API ====================
 
-@app.get("/config")
-async def config_page():
-    """配置页面（首次启动）"""
-    return FileResponse(get_static_dir() / "config.html")
+from fastapi import APIRouter
+disk_router = APIRouter(prefix="/api/storage", tags=["存储监控"])
 
-@app.get("/dashboard")
-async def dashboard_page():
-    """看板首页"""
-    return FileResponse(get_static_dir() / "dashboard.html")
 
-@app.get("/orders")
-async def orders_page():
-    """订单列表"""
-    return FileResponse(get_static_dir() / "orders.html")
+@disk_router.get("/")
+async def get_storage_status():
+    """获取存储状态概览"""
+    from services.disk_monitor import get_storage_overview
+    return get_storage_overview(str(DATA_DIR))
 
-@app.get("/customers")
-async def customers_page():
-    """客户管理"""
-    return FileResponse(get_static_dir() / "customers.html")
 
-@app.get("/products")
-async def products_page():
-    """产品管理"""
-    return FileResponse(get_static_dir() / "products.html")
+@disk_router.post("/cleanup")
+async def cleanup_photos(days: int = 30):
+    """清理旧照片释放空间
+    
+    Args:
+        days: 保留最近N天的照片，默认30天
+    """
+    from services.disk_monitor import cleanup_old_photos
+    result = cleanup_old_photos(str(DATA_DIR), keep_recent_days=days)
+    return {
+        "success": True,
+        "message": f"已清理 {result['deleted_count']} 张照片，释放 {result['freed_mb']}MB 空间",
+        **result
+    }
 
-@app.get("/alerts")
-async def alerts_page():
-    """预警中心"""
-    return FileResponse(get_static_dir() / "alerts.html")
 
-# ==================== 静态文件服务 ====================
+# ==================== 错误处理 ====================
 
-@app.get("/static/{path:path}")
-async def serve_static(path: str):
-    """提供静态文件"""
-    file_path = get_static_dir() / path
-    if file_path.exists() and file_path.is_file():
-        return FileResponse(file_path)
-    return {"error": "File not found"}
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    """404处理 — 前端路由 fallback"""
+    if request.url.path.startswith("/api/"):
+        return {"error": "Not Found", "path": str(request.url.path)}
+    return FileResponse(FRONTEND_DIR / "dashboard.html")
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc):
+    """500处理"""
+    return {"error": "Internal Server Error", "detail": str(exc)}
+
 
 # ==================== 启动入口 ====================
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    print(f"🚀 Move Hermes 正在启动...")
-    print(f"   数据目录: {get_data_dir()}")
-    print(f"   数据库: {get_db_path()}")
-    print(f"   访问地址: http://localhost:{port}")
+    print("=" * 50)
+    print("  🚀 Move Hermes — 智能订单管理系统")
+    print("=" * 50)
+    print(f"  数据目录: {DATA_DIR}")
+    print(f"  数据库:   {db.DB_PATH}")
+    print(f"  照片目录: {PHOTO_DIR}")
+    print(f"  访问地址: http://localhost:{port}")
+    print("=" * 50)
     
     uvicorn.run(
         app,

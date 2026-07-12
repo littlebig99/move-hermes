@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Move Hermes — 财务概览</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.header{background:#1e293b;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155}
+.header h1{font-size:1.25rem;color:#38bdf8}
+.header nav a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
+.header nav a:hover,.header nav a.active{color:#38bdf8}
+.breadcrumb{padding:1rem 2rem;display:flex;gap:.5rem;align-items:center;font-size:.9rem;color:#64748b}
+.breadcrumb a{color:#38bdf8;text-decoration:none}
+.content{padding:0 2rem 2rem;max-width:1200px;margin:0 auto}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem}
+.stat-card{background:#1e293b;border-radius:10px;padding:1.25rem;border:1px solid #334155}
+.stat-card .label{font-size:.85rem;color:#64748b;margin-bottom:.5rem}
+.stat-card .value{font-size:1.8rem;font-weight:700}
+.stat-card .value.blue{color:#38bdf8}
+.stat-card .value.green{color:#34d399}
+.stat-card .value.yellow{color:#fbbf24}
+.stat-card .value.red{color:#f87171}
+.stat-card .sub{font-size:.8rem;color:#64748b;margin-top:.25rem}
+.card{background:#1e293b;border-radius:10px;border:1px solid #334155;padding:1.5rem;margin-bottom:1.5rem}
+.card h2{font-size:1.1rem;margin-bottom:1rem;color:#e2e8f0}
+.table-container{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{background:#0f172a;padding:.75rem 1rem;text-align:left;font-size:.85rem;color:#64748b;font-weight:500}
+td{padding:.75rem 1rem;border-bottom:1px solid #1e293b;font-size:.9rem}
+tr:hover td{background:rgba(56,189,248,.03)}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.8rem;font-weight:500}
+.badge-done{background:rgba(52,211,153,.15);color:#34d399}
+.badge-progress{background:rgba(56,189,248,.15);color:#38bdf8}
+.badge-pending{background:rgba(148,163,184,.15);color:#94a3b8}
+.badge-urgent{background:rgba(248,113,113,.15);color:#f87171}
+.empty-state{text-align:center;padding:3rem 2rem;color:#64748b}
+.loading{text-align:center;padding:4rem;color:#64748b;font-size:1.1rem}
+.filter-bar{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}
+.filter-bar select,.filter-bar input{padding:.5rem .75rem;border:1px solid #475569;border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:.9rem}
+.chart-container{height:200px;display:flex;align-items:flex-end;gap:4px;padding:1rem 0}
+.chart-bar{background:linear-gradient(to top,#38bdf8,#34d399);border-radius:4px 4px 0 0;min-width:20px;transition:height .3s;position:relative}
+.chart-bar:hover::after{content:attr(data-label);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#1e293b;color:#e2e8f0;padding:.25rem .5rem;border-radius:4px;font-size:.75rem;white-space:nowrap;border:1px solid #475569}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>📦 Move Hermes</h1>
+<nav>
+<a href="/dashboard">看板</a>
+<a href="/orders">订单</a>
+<a href="/tasks">工序</a>
+<a href="/customers">客户</a>
+<a href="/products">产品</a>
+<a href="/finance" class="active">财务</a>
+<a href="/卷料长度计算">卷料计算</a>
+<a href="/alerts">预警</a>
+</nav>
+</div>
+<div class="breadcrumb">
+<a href="/dashboard">看板</a> <span>/</span> <span>财务概览</span>
+</div>
+<div class="content" id="content">
+<div class="loading">⏳ 加载中...</div>
+</div>
+
+<script>
+const API='/api';
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+function fmt(n){return n!=null?(typeof n==='number'?n.toFixed(2):n):'-';}
+function fmtDate(d){return d?d.replace('T',' ').substring(0,16):'-';}
+
+async function loadFinance(){
+    try{
+        // 获取所有订单（不分页）
+        const r=await fetch(API+'/orders?page_size=1000');
+        const data=await r.json();
+        const orders=data.orders||[];
+        renderFinance(orders);
+    }catch(e){
+        document.getElementById('content').innerHTML='<div class="empty-state"><h2>加载失败</h2><p>请检查后端服务</p></div>';
+    }
+}
+
+function renderFinance(orders){
+    // 计算统计数据
+    const totalAmount=orders.reduce(function(s,o){return s+(o.total_amount||0);},0);
+    const pendingOrders=orders.filter(function(o){return o.status==='pending';});
+    const producingOrders=orders.filter(function(o){return o.status==='producing';});
+    const completedOrders=orders.filter(function(o){return o.status==='completed'||o.status==='shipped';});
+    const pendingAmount=pendingOrders.reduce(function(s,o){return s+(o.total_amount||0);},0);
+    const producingAmount=producingOrders.reduce(function(s,o){return s+(o.total_amount||0);},0);
+    const completedAmount=completedOrders.reduce(function(s,o){return s+(o.total_amount||0);},0);
+    const urgentOrders=orders.filter(function(o){return o.priority==='urgent'&&o.status!=='completed'&&o.status!=='shipped';});
+    
+    // 按客户统计
+    const customerMap={};
+    orders.forEach(function(o){
+        var cn=o.customer_name||'未知客户';
+        if(!customerMap[cn])customerMap[cn]={total:0,count:0};
+        customerMap[cn].total+=o.total_amount||0;
+        customerMap[cn].count++;
+    });
+    var customerStats=Object.entries(customerMap).sort(function(a,b){return b[1].total-a[1].total;});
+    
+    // 按月份统计（收入趋势）
+    var monthMap={};
+    orders.forEach(function(o){
+        if(!o.created_at)return;
+        var m=o.created_at.substring(0,7);
+        if(!monthMap[m])monthMap[m]=0;
+        monthMap[m]+=o.total_amount||0;
+    });
+    var months=Object.entries(monthMap).sort(function(a,b){return a[0].localeCompare(b[0]);});
+    var maxMonth=months.length?Math.max.apply(null,months.map(function(m){return m[1];}))||1:1;
+    
+    // 按产品统计
+    var productMap={};
+    orders.forEach(function(o){
+        var pn=o.product_name||'未知产品';
+        if(!productMap[pn])productMap[pn]={total:0,qty:0,count:0};
+        productMap[pn].total+=o.total_amount||0;
+        productMap[pn].qty+=o.quantity||0;
+        productMap[pn].count++;
+    });
+    var productStats=Object.entries(productMap).sort(function(a,b){return b[1].total-a[1].total;});
+    
+    var avgOrder=orders.length?totalAmount/orders.length:0;
+    
+    // 生成图表HTML
+    var chartHtml='';
+    months.forEach(function(m){
+        var h=Math.max(4,(m[1]/maxMonth)*180);
+        chartHtml+='<div class="chart-bar" style="height:'+h+'px" data-label="'+esc(m[0])+': ¥'+fmt(m[1])+'"></div>';
+    });
+    if(!chartHtml)chartHtml='<div style="color:#64748b;padding:2rem;text-align:center">暂无数据</div>';
+    
+    var html=`
+    <div class="stats">
+        <div class="stat-card">
+            <div class="label">💰 订单总金额</div>
+            <div class="value blue">¥${fmt(totalAmount)}</div>
+            <div class="sub">共 ${orders.length} 笔订单</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">✅ 已完成金额</div>
+            <div class="value green">¥${fmt(completedAmount)}</div>
+            <div class="sub">${completedOrders.length} 笔已完成</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">🔄 进行中金额</div>
+            <div class="value yellow">¥${fmt(producingAmount)}</div>
+            <div class="sub">${producingOrders.length} 笔生产中</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">⏳ 待开工金额</div>
+            <div class="value red">¥${fmt(pendingAmount)}</div>
+            <div class="sub">${pendingOrders.length} 笔待开工</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">📊 平均订单金额</div>
+            <div class="value blue">¥${fmt(avgOrder)}</div>
+            <div class="sub">每笔订单</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">🔥 加急订单</div>
+            <div class="value red">${urgentOrders.length}</div>
+            <div class="sub">需要关注</div>
+        </div>
+    </div>
+    
+    <!-- 收入趋势 -->
+    <div class="card">
+        <h2>📈 月度收入趋势</h2>
+        <div class="chart-container">${chartHtml}</div>
+    </div>
+    
+    <!-- 客户排行 -->
+    <div class="card">
+        <h2>🏆 客户交易排行</h2>
+        <div class="table-container">
+        <table>
+        <thead><tr><th>排名</th><th>客户</th><th>订单数</th><th>总金额</th><th>平均金额</th></tr></thead>
+        <tbody>`;
+    if(!customerStats.length){
+        html+='<tr><td colspan="5" style="text-align:center;padding:2rem;color:#64748b">暂无数据</td></tr>';
+    } else {
+        customerStats.forEach(function(c,i){
+            var rank=i+1;
+            var icon=rank<=3?['🥇','🥈','🥉'][rank-1]:'#'+rank;
+            html+=`<tr>
+                <td>${icon}</td>
+                <td style="font-weight:600">${esc(c[0])}</td>
+                <td>${c[1].count}</td>
+                <td style="color:#38bdf8;font-weight:600">¥${fmt(c[1].total)}</td>
+                <td>¥${fmt(c[1].total/c[1].count)}</td>
+            </tr>`;
+        });
+    }
+    html+='</tbody></table></div></div>';
+    
+    // 产品排行
+    html+='<div class="card"><h2>📦 产品交易排行</h2><div class="table-container"><table><thead><tr><th>产品</th><th>订单数</th><th>总数量</th><th>总金额</th></tr></thead><tbody>';
+    if(!productStats.length){
+        html+='<tr><td colspan="4" style="text-align:center;padding:2rem;color:#64748b">暂无数据</td></tr>';
+    } else {
+        productStats.forEach(function(p){
+            html+=`<tr>
+                <td style="font-weight:600">${esc(p[0])}</td>
+                <td>${p[1].count}</td>
+                <td>${fmt(p[1].qty)}</td>
+                <td style="color:#34d399;font-weight:600">¥${fmt(p[1].total)}</td>
+            </tr>`;
+        });
+    }
+    html+='</tbody></table></div></div>';
+    
+    // 最近订单
+    html+='<div class="card"><h2>📋 最近订单</h2><div class="table-container"><table><thead><tr><th>订单号</th><th>客户</th><th>产品</th><th>数量</th><th>金额</th><th>状态</th><th>优先级</th><th>创建日期</th></tr></thead><tbody>';
+    var recent=orders.slice().sort(function(a,b){return(b.created_at||'').localeCompare(a.created_at||'');}).slice(0,10);
+    if(!recent.length){
+        html+='<tr><td colspan="8" style="text-align:center;padding:2rem;color:#64748b">暂无订单</td></tr>';
+    } else {
+        recent.forEach(function(o){
+            var statusMap={pending:'<span class="badge badge-pending">⏳ 待开工</span>',producing:'<span class="badge badge-progress">🔄 生产中</span>',completed:'<span class="badge badge-done">✅ 已完成</span>',shipped:'<span class="badge badge-done">📦 已发货</span>'};
+            var priBadge=o.priority==='urgent'?'<span class="badge badge-urgent">🔥 加急</span>':'<span class="badge badge-pending">普通</span>';
+            html+=`<tr>
+                <td><a href="/order-detail?id=${o.id}" style="color:#38bdf8;text-decoration:none;font-weight:600">${esc(o.order_no)}</a></td>
+                <td>${esc(o.customer_name||'-')}</td>
+                <td>${esc(o.product_name||'-')}</td>
+                <td>${o.quantity||'-'}</td>
+                <td style="font-weight:600;color:#34d399">¥${fmt(o.total_amount)}</td>
+                <td>${statusMap[o.status]||'<span class="badge badge-pending">未知</span>'}</td>
+                <td>${priBadge}</td>
+                <td>${fmtDate(o.created_at)}</td>
+            </tr>`;
+        });
+    }
+    html+='</tbody></table></div></div>';
+    
+    document.getElementById('content').innerHTML=html;
+}
+
+loadFinance();
+</script>
+</body>
+</html>

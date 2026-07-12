@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Move Hermes — 订单详情</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+        .header{background:#1e293b;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155}
+        .header h1{font-size:1.25rem;color:#38bdf8}
+        .header nav a{color:#94a3b8;text-decoration:none;margin-left:1.5rem;font-size:.9rem}
+        .header nav a:hover,.header nav a.active{color:#38bdf8}
+        .breadcrumb{padding:1rem 2rem;display:flex;gap:.5rem;align-items:center;font-size:.9rem;color:#64748b}
+        .breadcrumb a{color:#38bdf8;text-decoration:none}
+        .breadcrumb a:hover{text-decoration:underline}
+        .content{padding:0 2rem 2rem;max-width:1200px;margin:0 auto}
+        .card{background:#1e293b;border-radius:10px;border:1px solid #334155;padding:1.5rem;margin-bottom:1.5rem}
+        .card h2{font-size:1.1rem;margin-bottom:1rem;color:#e2e8f0;display:flex;align-items:center;gap:.5rem}
+        .info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}
+        .info-item{display:flex;flex-direction:column;gap:.25rem}
+        .info-item .label{font-size:.8rem;color:#64748b}
+        .info-item .value{font-size:1rem;color:#e2e8f0}
+        .badge{display:inline-block;padding:.2rem .6rem;border-radius:20px;font-size:.8rem;font-weight:500}
+        .badge-done{background:rgba(52,211,153,.15);color:#34d399}
+        .badge-progress{background:rgba(56,189,248,.15);color:#38bdf8}
+        .badge-pending{background:rgba(148,163,184,.15);color:#94a3b8}
+        .badge-urgent{background:rgba(248,113,113,.15);color:#f87171}
+        .btn{padding:.5rem 1rem;border:none;border-radius:6px;font-size:.9rem;cursor:pointer}
+        .btn-primary{background:#38bdf8;color:#0f172a;font-weight:600}
+        .btn-sm{padding:.3rem .6rem;font-size:.8rem}
+        .btn-success{background:#34d399;color:#0f172a}
+        .btn-warning{background:#fbbf24;color:#0f172a}
+        .btn-danger{background:#f87171;color:#fff}
+        .btn-outline{background:transparent;border:1px solid #475569;color:#94a3b8}
+        .btn-outline:hover{border-color:#38bdf8;color:#38bdf8}
+        .empty-state{text-align:center;padding:3rem 2rem;color:#64748b}
+        .empty-state h2{font-size:1.3rem;margin-bottom:.5rem;color:#94a3b8}
+        .loading{text-align:center;padding:4rem;color:#64748b;font-size:1.1rem}
+        .actions-bar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem}
+        /* 工序卡片 */
+        .task-card{background:#0f172a;border-radius:8px;padding:1rem;margin-bottom:.75rem;border-left:3px solid #475569;transition:all .2s}
+        .task-card.completed{border-left-color:#34d399}
+        .task-card.in_progress{border-left-color:#38bdf8}
+        .task-card.pending{border-left-color:#64748b}
+        .task-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+        .task-name{font-weight:600;font-size:.95rem}
+        .task-seq{font-size:.8rem;color:#64748b}
+        .task-meta{display:flex;gap:1rem;font-size:.85rem;color:#94a3b8;flex-wrap:wrap}
+        .task-meta span{display:flex;align-items:center;gap:.3rem}
+        .task-actions{display:flex;gap:.4rem;margin-top:.75rem}
+        /* 模态框 */
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+        .modal-overlay.show{display:flex}
+        .modal{background:#1e293b;border-radius:12px;padding:2rem;width:90%;max-width:500px;border:1px solid #334155}
+        .modal h3{margin-bottom:1.5rem;color:#38bdf8}
+        .form-group{margin-bottom:1rem}
+        .form-group label{display:block;margin-bottom:.3rem;font-size:.9rem;color:#cbd5e1}
+        .form-group input,.form-group select,.form-group textarea{width:100%;padding:.6rem .8rem;border:1px solid #475569;border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:.9rem}
+        .form-group textarea{resize:vertical;min-height:60px}
+        .modal-actions{display:flex;gap:.75rem;margin-top:1.5rem}
+        .modal-actions .btn{flex:1;text-align:center}
+        .timeline{position:relative;padding-left:2rem}
+        .timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:#334155}
+        .timeline-item{position:relative;margin-bottom:1.5rem}
+        .timeline-dot{position:absolute;left:-2rem;top:0;width:18px;height:18px;border-radius:50%;border:2px solid #475569;background:#1e293b;z-index:1}
+        .timeline-item.completed .timeline-dot{border-color:#34d399;background:#34d399}
+        .timeline-item.in_progress .timeline-dot{border-color:#38bdf8;background:#38bdf8}
+        .timeline-content{background:#0f172a;border-radius:8px;padding:.75rem 1rem;border:1px solid #1e293b}
+        .timeline-title{font-weight:600;font-size:.9rem;margin-bottom:.25rem}
+        .timeline-time{font-size:.8rem;color:#64748b}
+        .upload-area{border:2px dashed #475569;border-radius:8px;padding:2rem;text-align:center;cursor:pointer;transition:all .2s}
+        .upload-area:hover{border-color:#38bdf8;background:rgba(56,189,248,.03)}
+        .upload-area p{color:#64748b;font-size:.9rem}
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>📦 Move Hermes</h1>
+    <nav>
+        <a href="/dashboard">看板</a>
+        <a href="/orders">订单</a>
+        <a href="/tasks">工序</a>
+        <a href="/recognize">识图</a>
+        <a href="/customers">客户</a>
+        <a href="/products">产品</a>
+        <a href="/finance">财务</a>
+        <a href="/alerts">预警</a>
+        <a href="/卷料长度计算">卷料计算</a>
+    </nav>
+</div>
+<div class="breadcrumb">
+    <a href="/orders">订单列表</a> <span>/</span> <span id="breadcrumbOrderNo">加载中...</span>
+</div>
+<div class="content" id="content">
+    <div class="loading">⏳ 加载中...</div>
+</div>
+
+<!-- 添加工序弹窗 -->
+<div class="modal-overlay" id="addTaskModal">
+    <div class="modal">
+        <h3>添加新工序</h3>
+        <div class="form-group"><label>工序名称 *</label><input type="text" id="taskName" placeholder="如：加工、焊接、组装"></div>
+        <div class="form-group"><label>工序序号 *</label><input type="number" id="taskSeq" placeholder="如：4"></div>
+        <div class="form-group"><label>负责人（可选）</label><input type="text" id="taskWorker" placeholder="工人姓名"></div>
+        <div class="modal-actions">
+            <button class="btn" style="background:#475569;color:#e2e8f0" onclick="closeAddTask()">取消</button>
+            <button class="btn btn-primary" onclick="doAddTask()">添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- 更新工序状态弹窗 -->
+<div class="modal-overlay" id="updateTaskModal">
+    <div class="modal">
+        <h3 id="updateTaskTitle">更新工序状态</h3>
+        <div class="form-group"><label>状态</label><select id="taskStatus"><option value="pending">待开工</option><option value="in_progress">进行中</option><option value="completed">已完成</option></select></div>
+        <div class="form-group"><label>负责人</label><input type="text" id="taskWorkerName" placeholder="当前操作人"></div>
+        <div class="form-group"><label>备注</label><textarea id="taskNotes" placeholder="完成备注..."></textarea></div>
+        <div class="modal-actions">
+            <button class="btn" style="background:#475569;color:#e2e8f0" onclick="closeUpdateTask()">取消</button>
+            <button class="btn btn-primary" onclick="doUpdateTask()">保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API='/api';
+let orderId=null, currentTaskId=null;
+
+// 解析URL中的订单ID
+function parseOrderId(){
+    const hash=location.hash.slice(1);
+    if(hash){orderId=parseInt(hash);return true;}
+    const params=new URLSearchParams(location.search);
+    const id=params.get('id');
+    if(id){orderId=parseInt(id);return true;}
+    return false;
+}
+
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';}
+function fmtDate(d){if(!d)return'-';return d.replace('T',' ').substring(0,16);}
+function daysAgo(d){if(!d)return'-';const diff=Math.floor((Date.now()-new Date(d).getTime())/(864e5));return diff<=0?'今天':diff===1?'昨天':diff+'天前';}
+
+async function loadOrder(){
+    if(!orderId){document.getElementById('content').innerHTML='<div class="empty-state"><h2>无效的订单ID</h2></div>';return;}
+    try{
+        const r=await fetch(API+'/orders/'+orderId);
+        if(!r.ok)throw new Error('Not found');
+        const data=await r.json();
+        renderOrder(data);
+    }catch(e){
+        document.getElementById('content').innerHTML='<div class="empty-state"><h2>订单不存在</h2><p>请返回订单列表重新选择</p></div>';
+    }
+}
+
+function renderOrder(o){
+    document.getElementById('breadcrumbOrderNo').textContent=o.order_no||'订单 #'+o.id;
+    const statusMap={pending:'<span class="badge badge-pending">⏳ 待开工</span>',producing:'<span class="badge badge-progress">🔄 生产中</span>',completed:'<span class="badge badge-done">✅ 已完成</span>',shipped:'<span class="badge badge-done">📦 已发货</span>'};
+    const priBadge=o.priority==='urgent'?'<span class="badge badge-urgent">🔥 加急</span>':'';
+    
+    let html=`
+    <div class="actions-bar">
+        <button class="btn btn-outline" onclick="location.href='/orders'">← 返回列表</button>
+        ${o.priority!=='urgent'?`<button class="btn btn-warning" onclick="markUrgent(${o.id})">🔥 标记加急</button>`:''}
+        <button class="btn btn-primary" onclick="openAddTask()">+ 添加工序</button>
+    </div>
+    
+    <!-- 订单基本信息 -->
+    <div class="card">
+        <h2>📋 基本信息</h2>
+        <div class="info-grid">
+            <div class="info-item"><span class="label">订单编号</span><span class="value">${esc(o.order_no)}</span></div>
+            <div class="info-item"><span class="label">客户</span><span class="value">${esc(o.customer_name||'-')}</span></div>
+            <div class="info-item"><span class="label">联系人</span><span class="value">${esc(o.customer_phone||'-')}</span></div>
+            <div class="info-item"><span class="label">产品</span><span class="value">${esc(o.product_name||'-')}</span></div>
+            <div class="info-item"><span class="label">规格</span><span class="value">${esc(o.product_spec||'-')}</span></div>
+            <div class="info-item"><span class="label">数量</span><span class="value">${o.quantity||'-'}</span></div>
+            <div class="info-item"><span class="label">单价</span><span class="value">¥${o.unit_price||'-'}</span></div>
+            <div class="info-item"><span class="label">总额</span><span class="value">¥${o.total_amount||'-'}</span></div>
+            <div class="info-item"><span class="label">状态</span><span class="value">${statusMap[o.status]||statusMap.pending}</span></div>
+            <div class="info-item"><span class="label">优先级</span><span class="value">${priBadge||'<span class="badge badge-pending">普通</span>'}</span></div>
+            <div class="info-item"><span class="label">交货日期</span><span class="value">${fmtDate(o.delivery_date)}</span></div>
+            <div class="info-item"><span class="label">创建日期</span><span class="value">${fmtDate(o.created_at)}</span></div>
+        </div>
+        ${o.notes?'<div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #334155"><span class="label" style="font-size:.8rem;color:#64748b">备注</span><p style="margin-top:.3rem;color:#cbd5e1">'+esc(o.notes)+'</p></div>':''}
+    </div>
+    
+    <!-- 工序流程 -->
+    <div class="card">
+        <h2>🔧 工序流程 (${(o.tasks||[]).length})</h2>`;
+    
+    if(!o.tasks||o.tasks.length===0){
+        html+='<div class="empty-state"><h2>暂无工序</h2><p>点击「添加工序」开始创建生产流程</p></div>';
+    } else {
+        html+='<div class="timeline">';
+        o.tasks.forEach(function(t,i){
+            const done=t.status==='completed';
+            const prog=t.status==='in_progress';
+            const cls=done?'completed':prog?'in_progress':'pending';
+            const statusBadge=t.status==='completed'?'<span class="badge badge-done">✅ 已完成</span>':
+                             t.status==='in_progress'?'<span class="badge badge-progress">🔄 进行中</span>':
+                             '<span class="badge badge-pending">⏳ 待开工</span>';
+            const stall=t.is_stalled?' ⚠️ 呆滞':"";
+            html+=`<div class="timeline-item ${cls}">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <div class="task-header">
+                        <div><span class="task-seq">#${t.sequence_num}</span> <span class="task-name">${esc(t.task_name)}</span></div>
+                        <div style="display:flex;gap:.5rem;align-items:center">${statusBadge}${stall?'<span class="badge badge-urgent">⚠️</span>':''}</div>
+                    </div>
+                    <div class="task-meta">
+                        ${t.worker_name?'<span>👤 '+esc(t.worker_name)+'</span>':''}
+                        ${t.started_at?'<span>🕐 '+fmtDate(t.started_at)+'</span>':''}
+                        ${t.completed_at?'<span>✅ '+fmtDate(t.completed_at)+'</span>':''}
+                        ${t.is_stalled?'<span style="color:#f87171">停滞 '+daysAgo(t.stalled_since)+'</span>':''}
+                    </div>
+                    ${t.ai_notes?'<p style="margin-top:.5rem;font-size:.85rem;color:#94a3b8;background:#1e293b;padding:.5rem;border-radius:4px">🤖 AI: '+esc(t.ai_notes)+'</p>':''}
+                    <div class="task-actions">
+                        ${t.status!=='completed'?`<button class="btn btn-sm btn-success" onclick="openUpdateTask(${t.id},'${esc(t.task_name)}','in_progress')">▶ 开工</button>`:''}
+                        ${t.status==='in_progress'?`<button class="btn btn-sm btn-primary" onclick="openUpdateTask(${t.id},'${esc(t.task_name)}','completed')">✅ 完成</button>`:''}
+                        ${t.status==='pending'?`<button class="btn btn-sm btn-warning" onclick="openUpdateTask(${t.id},'${esc(t.task_name)}','in_progress')">▶ 开工</button>`:''}
+                        <button class="btn btn-sm btn-outline" onclick="deleteTask(${t.id})">删除</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+        html+='</div>';
+    }
+    
+    html+='</div>';
+    document.getElementById('content').innerHTML=html;
+}
+
+async function markUrgent(id){
+    try{await fetch(API+'/orders/'+id+'/urgent',{method:'POST'});loadOrder();}catch(e){alert('操作失败');}
+}
+
+// 添加工序
+function openAddTask(){document.getElementById('taskName').value='';document.getElementById('taskSeq').value='';document.getElementById('taskWorker').value='';document.getElementById('addTaskModal').classList.add('show');}
+function closeAddTask(){document.getElementById('addTaskModal').classList.remove('show');}
+async function doAddTask(){
+    const name=document.getElementById('taskName').value.trim();
+    const seq=parseInt(document.getElementById('taskSeq').value);
+    if(!name||!seq){alert('请填写工序名称和序号');return;}
+    try{
+        const r=await fetch(API+'/orders/'+orderId+'/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task_name:name,sequence_num:seq,worker_name:document.getElementById('taskWorker').value.trim()})});
+        if(r.ok){closeAddTask();loadOrder();}else alert('添加失败');
+    }catch(e){alert('添加失败');}
+}
+
+// 更新工序状态
+function openUpdateTask(tid,tname,status){currentTaskId=tid;document.getElementById('updateTaskTitle').textContent='更新工序：'+tname;document.getElementById('taskStatus').value=status;document.getElementById('taskWorkerName').value='';document.getElementById('taskNotes').value='';document.getElementById('updateTaskModal').classList.add('show');}
+function closeUpdateTask(){document.getElementById('updateTaskModal').classList.remove('show');}
+async function doUpdateTask(){
+    const status=document.getElementById('taskStatus').value;
+    const worker=document.getElementById('taskWorkerName').value.trim();
+    const notes=document.getElementById('taskNotes').value.trim();
+    try{
+        const r=await fetch(API+'/orders/tasks/'+currentTaskId+'/status',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:status,worker_name:worker,ai_notes:notes})});
+        if(r.ok){closeUpdateTask();loadOrder();}else alert('更新失败');
+    }catch(e){alert('更新失败');}
+}
+
+async function deleteTask(tid){if(!confirm('确定删除此工序？'))return;try{const r=await fetch(API+'/orders/tasks/'+tid,{method:'DELETE'});if(r.ok)loadOrder();}catch(e){alert('删除失败');}}
+
+document.getElementById('addTaskModal').addEventListener('click',function(e){if(e.target===this)closeAddTask();});
+document.getElementById('updateTaskModal').addEventListener('click',function(e){if(e.target===this)closeUpdateTask();});
+
+parseOrderId();
+loadOrder();
+</script>
+</body>
+</html>
