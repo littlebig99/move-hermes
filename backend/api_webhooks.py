@@ -5,8 +5,23 @@ from fastapi import APIRouter, HTTPException, Request, Form, Query
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import asyncio
-import database as db
-from services.ai_service import AIService
+# 数据库导入（兼容直接运行和包导入）
+import sys
+from pathlib import Path
+try:
+    from . import database as db
+except ImportError:
+    _backend = str(Path(__file__).resolve().parent)
+    if _backend not in sys.path:
+        sys.path.insert(0, _backend)
+    import database as db
+try:
+    from .services.ai_service import AIService
+except ImportError:
+    _backend = str(Path(__file__).resolve().parent)
+    if _backend not in sys.path:
+        sys.path.insert(0, _backend)
+    from services.ai_service import AIService
 
 router = APIRouter(prefix="/api/webhook", tags=["机器人回调"])
 

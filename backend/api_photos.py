@@ -8,8 +8,16 @@ import os
 import base64
 import json
 import datetime
+# 数据库导入（兼容直接运行和包导入）
+import sys
 from pathlib import Path
-import database as db
+try:
+    from . import database as db
+except ImportError:
+    _backend = str(Path(__file__).resolve().parent)
+    if _backend not in sys.path:
+        sys.path.insert(0, _backend)
+    import database as db
 
 router = APIRouter(prefix="/api/photos", tags=["照片与AI识别"])
 

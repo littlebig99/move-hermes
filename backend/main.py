@@ -21,7 +21,11 @@ FRONTEND_DIR = PROJECT_ROOT / "frontend"
 DATA_DIR.mkdir(exist_ok=True)
 
 # 数据库初始化
-import database as db
+# 数据库初始化（兼容直接运行和包导入）
+try:
+    from . import database as db
+except ImportError:
+    import database as db
 db.init_db()
 
 # ==================== 应用创建 ====================
@@ -37,12 +41,12 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 # ==================== 导入路由 ====================
 
-from api_orders import router as orders_router
-from api_customers import router as customers_router
-from api_products import router as products_router
-from api_photos import router as photos_router
-from api_config import router as config_router
-from api_webhooks import router as webhooks_router
+from .api_orders import router as orders_router
+from .api_customers import router as customers_router
+from .api_products import router as products_router
+from .api_photos import router as photos_router
+from .api_config import router as config_router
+from .api_webhooks import router as webhooks_router
 
 app.include_router(orders_router)
 app.include_router(customers_router)
@@ -184,8 +188,6 @@ if __name__ == "__main__":
     print("  🚀 Move Hermes — 智能订单管理系统")
     print("=" * 50)
     print(f"  数据目录: {DATA_DIR}")
-    print(f"  数据库:   {db.DB_PATH}")
-    print(f"  照片目录: {PHOTO_DIR}")
     print(f"  访问地址: http://localhost:{port}")
     print("=" * 50)
     

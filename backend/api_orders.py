@@ -5,7 +5,16 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 import datetime
-import database as db
+# 数据库导入（兼容直接运行和包导入）
+import sys
+from pathlib import Path
+try:
+    from . import database as db
+except ImportError:
+    _backend = str(Path(__file__).resolve().parent)
+    if _backend not in sys.path:
+        sys.path.insert(0, _backend)
+    import database as db
 
 router = APIRouter(prefix="/api/orders", tags=["订单管理"])
 
