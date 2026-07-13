@@ -20,7 +20,6 @@ FRONTEND_DIR = PROJECT_ROOT / "frontend"
 # 确保数据目录存在
 DATA_DIR.mkdir(exist_ok=True)
 
-# 数据库初始化
 # 数据库初始化（兼容直接运行和包导入）
 try:
     from . import database as db
@@ -41,12 +40,21 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 # ==================== 导入路由 ====================
 
-from .api_orders import router as orders_router
-from .api_customers import router as customers_router
-from .api_products import router as products_router
-from .api_photos import router as photos_router
-from .api_config import router as config_router
-from .api_webhooks import router as webhooks_router
+# 路由导入（兼容直接运行和包导入）
+try:
+    from .api_orders import router as orders_router
+    from .api_customers import router as customers_router
+    from .api_products import router as products_router
+    from .api_photos import router as photos_router
+    from .api_config import router as config_router
+    from .api_webhooks import router as webhooks_router
+except ImportError:
+    from api_orders import router as orders_router
+    from api_customers import router as customers_router
+    from api_products import router as products_router
+    from api_photos import router as photos_router
+    from api_config import router as config_router
+    from api_webhooks import router as webhooks_router
 
 app.include_router(orders_router)
 app.include_router(customers_router)

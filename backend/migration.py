@@ -137,14 +137,20 @@ def _migrate_db(db_path: Optional[str] = None):
 
 def _resolve_db_path(db_path=None):
     """临时引用 — 实际应从 connection 导入"""
-    from .connection import _resolve_db_path as rp
+    try:
+        from .connection import _resolve_db_path as rp
+    except ImportError:
+        from connection import _resolve_db_path as rp
     return rp(db_path)
 
 
 def get_overdue_orders(db_path=None):
     """获取逾期订单（交货日期已过但未完成）"""
     import datetime
-    from .connection import get_connection
+    try:
+        from .connection import get_connection
+    except ImportError:
+        from connection import get_connection
     today = datetime.date.today().isoformat()
     with get_connection(db_path) as conn:
         rows = conn.execute(
@@ -163,7 +169,10 @@ def get_overdue_orders(db_path=None):
 def get_upcoming_delivery(days=3, db_path=None):
     """获取即将到期的订单（未来N天内交货）"""
     import datetime
-    from .connection import get_connection
+    try:
+        from .connection import get_connection
+    except ImportError:
+        from connection import get_connection
     soon = (datetime.date.today() + datetime.timedelta(days=days)).isoformat()
     today = datetime.date.today().isoformat()
     with get_connection(db_path) as conn:
