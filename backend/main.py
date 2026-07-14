@@ -193,7 +193,7 @@ async def server_error_handler(request: Request, exc):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     print("=" * 50)
-    print("  🚀 Move Hermes — 智能订单管理系统")
+    print("  [OK] Move Hermes — 智能订单管理系统")
     print("=" * 50)
     print(f"  数据目录: {DATA_DIR}")
     print(f"  访问地址: http://localhost:{port}")

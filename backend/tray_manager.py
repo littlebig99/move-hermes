@@ -12,7 +12,7 @@ try:
     import pystray
     from PIL import Image, ImageDraw, ImageFont
 except ImportError:
-    print("⚠️ pystray 未安装，跳过托盘功能")
+    print("[WARN] pystray 未安装，跳过托盘功能")
     print("   安装命令: pip install pystray pillow")
     sys.exit(1)
 
@@ -59,7 +59,7 @@ class ServerTrayManager:
     
     def _on_quit(self, icon=None):
         """退出回调"""
-        print("\n🔴 正在关闭服务器...")
+        print("\n[STOP] 正在关闭服务器...")
         self.is_running = False
         if self.server_process and self.server_process.poll() is None:
             self.server_process.terminate()
@@ -67,7 +67,7 @@ class ServerTrayManager:
                 self.server_process.wait(timeout=5)
             except:
                 self.server_process.kill()
-        print("✅ 服务器已停止")
+        print("[OK] 服务器已停止")
         if icon:
             icon.stop()
     
@@ -84,7 +84,7 @@ class ServerTrayManager:
                     use_colors=False
                 )
             except Exception as e:
-                print(f"❌ 服务器启动失败: {e}")
+                print(f"[FAIL] 服务器启动失败: {e}")
         
         thread = threading.Thread(target=run_server, daemon=True)
         thread.start()
@@ -93,7 +93,7 @@ class ServerTrayManager:
     def run(self):
         """运行托盘管理器"""
         print("=" * 50)
-        print("  🚀 Move Hermes — 托盘模式启动")
+        print("  [START] Move Hermes — 托盘模式启动")
         print("=" * 50)
         print(f"  端口: {self.port}")
         print(f"  访问: http://localhost:{self.port}")
@@ -128,12 +128,12 @@ class ServerTrayManager:
                 import urllib.request
                 response = urllib.request.urlopen(f"http://localhost:{self.port}/health", timeout=2)
                 if response.status == 200:
-                    print("✅ 服务器启动成功")
+                    print("[OK] 服务器启动成功")
                     break
             except:
                 pass
         else:
-            print("⚠️ 服务器启动超时，请检查日志")
+            print("[WARN] 服务器启动超时，请检查日志")
         
         # 显示托盘图标
         self.tray_icon.run()
@@ -153,10 +153,10 @@ def _health_check():
         response = urllib.request.urlopen("http://localhost:8080/health", timeout=5)
         data = json.loads(response.read().decode())
         status = data.get("status", "unknown")
-        print(f"📊 健康检查: {status}")
+        print(f"[STATS] 健康检查: {status}")
         return f"状态: {status}"
     except Exception as e:
-        print(f"❌ 健康检查失败: {e}")
+        print(f"[FAIL] 健康检查失败: {e}")
         return f"错误: {e}"
 
 

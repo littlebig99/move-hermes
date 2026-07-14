@@ -170,7 +170,7 @@ def get_storage_overview(data_dir: str) -> Dict[str, Any]:
     if disk_info.get("status") == "critical":
         overview["recommendations"].append({
             "level": "critical",
-            "message": "⚠️ 存储空间即将耗尽！请立即清理旧照片或更换U盘",
+            "message": "[WARN] 存储空间即将耗尽！请立即清理旧照片或更换U盘",
             "action": "delete_old_photos"
         })
     elif disk_info.get("status") == "warning":

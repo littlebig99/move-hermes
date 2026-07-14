@@ -133,4 +133,4 @@ def init_db(db_path: str = None):
     
     conn.commit()
     conn.close()
-    print(f"✅ 数据库初始化完成: {db_path}")
+    print(f"[OK] 数据库初始化完成: {db_path}")

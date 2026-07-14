@@ -29,10 +29,10 @@ failed = 0
 def test(name, condition, detail=""):
     global passed, failed
     if condition:
-        print(f"  ✅ {name}")
+        print(f"  [OK] {name}")
         passed += 1
     else:
-        print(f"  ❌ {name}" + (f" — {detail}" if detail else ""))
+        print(f"  [FAIL] {name}" + (f" — {detail}" if detail else ""))
         failed += 1
 
 
@@ -229,7 +229,7 @@ if in_progress_task:
     logs = db.list_production_logs(task_id=task_id)
     test("生产日志查询", isinstance(logs, dict))
 else:
-    print("  ⚠️  跳过生产日志测试（无进行中工序）")
+    print("  [WARN]  跳过生产日志测试（无进行中工序）")
 
 # ========== 清理 ==========
 print("\n" + "=" * 60)

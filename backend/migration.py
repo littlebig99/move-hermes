@@ -119,7 +119,7 @@ def init_db(db_path: Optional[str] = None):
         """)
     
     path = _resolve_db_path(db_path)
-    print(f"✅ 数据库初始化完成: {path}")
+    print(f"[OK] 数据库初始化完成: {path}")
     
     # 数据库迁移：为已有数据库添加新字段
     _migrate_db(db_path)
