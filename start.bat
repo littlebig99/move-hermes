@@ -27,3 +27,5 @@ if %errorlevel% neq 0 (
 
 REM Auto open browser
 start "" "http://localhost:8080"
+
+exit /b
