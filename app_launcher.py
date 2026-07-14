@@ -30,7 +30,7 @@ except ImportError:
 
 try:
     import pystray
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageFont
 except ImportError:
     print("错误: 需要 pystray 和 pillow")
     print("安装命令: pip install pystray pillow")
